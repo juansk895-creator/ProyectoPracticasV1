@@ -2,6 +2,12 @@ function normalizeBaseUrl(baseUrl) {
     return baseUrl.replace(/\+$/, '');
 }
 
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 function buildAuthorizationHeader(authType, authToken) {
     if (authType === 'none') {
         return {};
@@ -26,6 +32,11 @@ function buildEntriesUrl(connection, options = {}) {
     const {
         page = 1,
         perPage = 500,
+        filterBy = null,
+        filterFrom = null,
+        filterTo = null,
+        sortBy = null,
+        sortOrder = 'ASC',
     } = options;
 
     const baseUrl = normalizeBaseUrl(connection.base_url);
@@ -35,32 +46,52 @@ function buildEntriesUrl(connection, options = {}) {
     );
 
     url.searchParams.set('per_page', String(perPage));
-    useLayoutEffect.searchParams.set('page', String(page));
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('format', 'json');
+
+    //useLayoutEffect.searchParams.set('page', String(page));
 
     if (connection.form_ref) {
         url.searchParams.set('form_ref', connection.form_ref);
+    }
+
+    if (filterBy) {
+        url.searchParams.set('filter_by', filterBy);
+    }
+
+    if (filterFrom) {
+        url.searchParams.set('filter_from', filterFrom);
+    }
+
+    if (filterTo) {
+        url.searchParams.set('filter_to', filterTo);
+    }
+
+    if (sortBy) {
+        url.searchParams.set('sort_by', sortBy);
+        url.searchParams.set('sort_order', sortOrder);
     }
 
     return url.toString();
 }
 
 function buildEntriesTestUrl(connection) {
-    const baseUrl = normalizeBaseUrl(connection.base_url);
-
+    /*const baseUrl = normalizeBaseUrl(connection.base_url);
     const url = new URL(
         `${baseUrl}/export/entries/${connection.project_slug}`,
     );
-
     url.searchParams.set('per_page', '1');
     url.searchParams.set('page', '1');
     url.searchParams.set('format', 'json');
-
     if (connection.form_ref) {
         url.searchParams.set('form_ref', connection.form_ref);
     }
-
     return url.toString();
-
+    */
+   return buildEntriesUrl(connection, {
+    page: 1,
+    perPage: 1,
+   });
 }
 
 function buildRequestHeaders(connection) {
@@ -161,11 +192,21 @@ async function fetchEpicollectEntriesPage(connection, options = {}) {
     const {
         page = 1,
         perPage = 500,
+        filterBy = null,
+        filterFrom = null,
+        filterTo = null,
+        sortBy = null,
+        sortOrder = 'ASC',
     } = options;
 
     const url = buildEntriesUrl(connection, {
         page,
         perPage,
+        filterBy,
+        filterFrom,
+        filterTo,
+        sortBy,
+        sortOrder,
     });
 
     const { statusCode, body } = await requestEpicollectJson(url, connection);
@@ -183,6 +224,12 @@ async function fetchAllEpicollectEntries(connection, options = {}) {
     const {
         perPage = 500, //límite
         maxPages = 10, //límite
+        delayMs = 500,
+        filterBy = null,
+        filterFrom = null,
+        filterTo = null,
+        sortBy = null,
+        sortOrder = 'ASC',
     } = options;
 
     const allEntries = [];
@@ -195,6 +242,11 @@ async function fetchAllEpicollectEntries(connection, options = {}) {
         const pageResult = await fetchEpicollectEntriesPage(connection, {
             page: currentPage,
             perPage,
+            filterBy,
+            filterFrom,
+            filterTo,
+            sortBy,
+            sortOrder,
         });
 
         const meta = pageResult.meta || {};
@@ -210,6 +262,12 @@ async function fetchAllEpicollectEntries(connection, options = {}) {
         lastPage = Number(meta.last_page || currentPage);
 
         currentPage +=1;
+
+        const shouldContinue = currentPate <= lastPage && currentPage <= maxPages;
+
+        if (shouldContinue && delayMs > 0) {
+            await sleep(delayMs);
+        }
     } while (currentPage <= lastPage && currentPage <= maxPages);
 
     return {

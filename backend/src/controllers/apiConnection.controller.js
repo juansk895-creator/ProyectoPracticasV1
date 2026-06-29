@@ -2,6 +2,7 @@ const apiConnectionModel = require('../models/apiConnection.model');
 const epicollectService = require('../services/epicollect.service');
 
 const syncService = require('../services/sync.service');
+const syncLogModel = require('../models/syncLog.model');
 
 
 function isValidRequiredString(value) {
@@ -306,12 +307,18 @@ async function testConnection(req, res) {
     }
 }
 
+function calculateDurationMs(startedAt, finishedAt) {
+    return finishedAt.getTime() - startedAt.getTime();
+}
+
 async function syncConnection(req, res) {
     const { id } = req.params;
 
+    let connection = null;
+    const startedAt = new Date();
+
     try {
-        const connection = 
-        await apiConnectionModel.findConnectionWithTokenById(id);
+        connection = await apiConnectionModel.findConnectionWithTokenById(id);
 
         if (!connection) {
             return res.status(404).json({
@@ -334,25 +341,91 @@ async function syncConnection(req, res) {
             });
         }
 
-        const syncResult = await syncService.sincConnectionToStaging(connection, {
-            perPage: 500,
-            maxPages: 10,
+        const syncResult = await syncService.syncConnectionToStaging(connection);
+
+        const nextCursor = syncResult.cursor.nextCursor || null;
+        const syncStatus = syncResult.database.skipped > 0 ? 'partial' : 'success';
+
+
+        const updatedConnection = await apiConnectionModel.updateConnectionSyncSate(id, {
+            status: syncStatus,
+            cursor: nextCursor,
+            errorMessage: null,
+            summary: syncResult,
         });
 
-        const updatedConnection = await apiConnectionModel.updateConnectionLastSync(id);
+        const finishedAt = new Date();
+
+        const syncLog = await syncLogModel.createSyncLog({
+            api_connection_id: connection.id,
+            project_slug: connection.project_slug,
+            form_ref: connection.form_ref,
+            status: syncStatus,
+            mode: syncResult.mode,
+            started_at: startedAt,
+            finished_at: finishedAt,
+            duration_ms: calculateDurationMs(startedAt, finishedAt),
+            filter_by: syncResult.filter.filterBy,
+            filter_from: syncResult.filter.filterFrom,
+            cursor_before: syncResult.cursor.previousCursor,
+            cursor_after: syncResult.cursor.nextCursor,
+            total_entries_fetched: syncResult.fetch.totalEntriesFetched,
+            processed_count: syncResult.database.processed,
+            skipped_count: syncResult.database.skipped,
+            stopped_by_max_pages: syncResult.fetch.stoppedByMaxPages,
+            error_message: null,
+            summary: syncResult,
+        });
 
         return res.json({
             status: 'ok',
             message: 'Sincronización ejecutada correctamente',
             data: {
                 connection: updatedConnection,
-                sync: syncResult,        
+                sync: syncResult,
+                log: syncLog,
             },
         });
     } catch (error) {
         const safeErrorMessage = error.statusCode ?
             `Error al sincronizar desde Epicollect. HTTP ${error.statusCode}.` :
             error.message;
+        
+        if (connection) {
+            await apiConnectionModel.updateConnectionSyncState(id, {
+                status: 'failed',
+                cursor: null,
+                errorMessage: safeErrorMessage,
+                summary: {
+                    error: safeErrorMessage,
+                },
+            });
+
+            const finishedAt = new Date();
+
+            await syncLogModel.createSyncLog({
+                api_connection_id: connection.id,
+                project_slug: connection.project_slug,
+                form_ref: connection.form_ref,
+                status: 'failed',
+                mode: null,
+                started_at: startedAt,
+                finished_at: finishedAt,
+                duration_ms: calculateDurationMs(startedAt, finishedAt),
+                filter_by: connection.sync_filter_by,
+                filter_from: null,
+                cursor_before: connection.sync_cursor,
+                cursor_after: connection.sync_cursor,
+                total_entries_fetched: 0,
+                processed_count: 0,
+                skipped_count: 0,
+                stopped_by_max_pages: false,
+                error_message: safeErrorMessage,
+                summary: {
+                    error: safeErrorMessage,
+                },
+            });
+        }
         
         return res.status(502).json({
             status: 'error',

@@ -14,6 +14,15 @@ const publicConnectionFields = `
     last_test_status,
     last_error_message,
     last_sync_at,
+    sync_filter_by,
+    sync_cursor,
+    sync_per_page,
+    sync_max_pages,
+    sync_delay_ms,
+    sync_overlap_minutes,
+    last_sync_status,
+    last_sync_error_message,
+    last_sync_summary,
     created_at,
     updated_at
 `;
@@ -46,6 +55,11 @@ async function createConnection(connectionData) {
         auth_type = 'bearer',
         auth_token,
         is_active = true,
+        sync_filter_by = 'uploaded_at',
+        sync_per_page = 500,
+        sync_max_pages = 5,
+        sync_delay_ms = 500,
+        sync_overlap_minutes = 5,
     } = connectionData;
 
     const result = await pool.query(`
@@ -57,9 +71,14 @@ async function createConnection(connectionData) {
             base_url,
             auth_type,
             auth_token,
-            is_active
+            is_active,
+            sync_filter_by,
+            sync_per_page,
+            sync_max_pages,
+            sync_delay_ms,
+            sync_overlap_minutes
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING ${publicConnectionFields}
     `,
     [
@@ -71,6 +90,11 @@ async function createConnection(connectionData) {
         auth_type,
         auth_token,
         is_active,
+        sync_filter_by,
+        sync_per_page,
+        sync_max_pages,
+        sync_delay_ms,
+        sync_overlap_minutes,
     ],);
     return result.rows[0];
 }
@@ -85,6 +109,11 @@ async function updateConnection(id, connectionData) {
         auth_type,
         auth_token,
         is_active,
+        sync_filter_by,
+        sync_per_page,
+        sync_max_pages,
+        sync_delay_ms,
+        sync_overlap_minutes,
     } = connectionData;
 
     const result = await pool.query(`
@@ -97,7 +126,12 @@ async function updateConnection(id, connectionData) {
             base_url = COALESCE($6, base_url),
             auth_type = COALESCE($7, auth_type),
             auth_token = COALESCE($8, auth_token),
-            is_active = COALESCE($9, is_active)
+            is_active = COALESCE($9, is_active),
+            sync_filter_by = COALESCE($10, sync_filter_by),
+            sync_per_page = COALESCE($11, sync_per_page),
+            sync_max_pages = COALESCE($12, sync_max_pages),
+            sync_delay_ms = COALESCE($13, sync_delay_ms),
+            sync_overlap_minutes = COALESCE($14, sync_overlap_minutes)
         WHERE id = $1
         RETURNING ${publicConnectionFields}
     `,
@@ -111,6 +145,11 @@ async function updateConnection(id, connectionData) {
         auth_type,
         auth_token,
         is_active,
+        sync_filter_by,
+        sync_per_page,
+        sync_max_pages,
+        sync_delay_ms,
+        sync_overlap_minutes,
     ],);
     return result.rows[0] || null;
 }
@@ -143,6 +182,15 @@ async function findConnectionWithTokenById(id) {
             last_test_status,
             last_error_message,
             last_sync_at,
+            sync_filter_by,
+            sync_cursor,
+            sync_per_page,
+            sync_max_pages,
+            sync_delay_ms,
+            sync_overlap_minutes,
+            last_sync_status,
+            last_sync_error_message,
+            last_sync_summary,
             created_at,
             updated_at
         FROM api_connections
@@ -170,14 +218,33 @@ async function updateConnectionTestStatus(id, testStatus, errorMessage = null) {
     return result.rows[0] || null;
 }
 
-async function updateConnectionLastSync(id) {
+async function updateConnectionSyncState(id, syncState) {
+
+    const {
+        status,
+        cursor = null,
+        errorMessage = null,
+        summary = {},
+    } = syncState;
+
+
     const result = await pool.query(`
         UPDATE api_connections
-        SET last_sync_at = now()
+        SET
+            last_sync_at = now(),
+            last_sync_status = $2,
+            sync_cursor = COALESCE($3, sync_cursor),
+            last_sync_error_message = $4,
+            last_sync_summary = $5::jsonb
         WHERE id = $1
         RETURNING ${publicConnectionFields}    
-    `,
-    [id],
+    `, [
+            id,
+            status,
+            cursor,
+            errorMessage,
+            JSON.stringify(summary),
+        ],
     );
 
     return result.rows[0] || null;
@@ -186,11 +253,11 @@ async function updateConnectionLastSync(id) {
 module.exports = {
     findAllConnections,
     findConnectionById,
+    findConnectionWithTokenById,
     createConnection,
     updateConnection,
     setConnectionActiveStatus,
-    findConnectionWithTokenById,
     updateConnectionTestStatus,
-    updateConnectionLastSync,
+    updateConnectionSyncState,
 };
 

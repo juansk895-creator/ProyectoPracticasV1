@@ -7,7 +7,7 @@ function normalizeDate(value) {
 
     const date = new Date(value);
 
-    if (Number.isNaN(DataTransfer.getTime())) {
+    if (Number.isNaN(date.getTime())) {
         return null;
     }
 
@@ -28,6 +28,7 @@ function mapEpicollectEntryToStaging(entry, connection){
         created_by: entry.created_by || entry.created_by_username || null,
         created_at_epicollect: normalizeDate(entry.created_at),
         updated_at_epicollect: normalizeDate(entry.updated_at),
+        uploaded_at_epicollect: normalizeDate(entry.uploaded_at),
         payload: entry,
     };
 }
@@ -41,6 +42,7 @@ async function upsertStagingEntry(client, stagingEntry) {
             created_by,
             created_at_epicollect,
             updated_at_epicollect,
+            uploaded_at_epicollect,
             payload,
             sync_status,
             validation_status
@@ -52,7 +54,8 @@ async function upsertStagingEntry(client, stagingEntry) {
             $4,
             $5,
             $6,
-            $7::jsonb,
+            $7,
+            $8::jsonb,
             'pending',
             'unvalidated'
         )
@@ -63,6 +66,7 @@ async function upsertStagingEntry(client, stagingEntry) {
             created_by =EXCLUDED.created_by,
             created_at_epicollect = EXCLUDED.created_at_epicollect,
             updated_at_epicollect = EXCLUDED.updated_at_epicollect,
+            uploaded_at_epicollect = EXCLUDED.uploaded_at_epicollect,
             payload = EXCLUDED.payload,
             sync_status = 'pending',
             updated_at = now()
@@ -74,6 +78,7 @@ async function upsertStagingEntry(client, stagingEntry) {
         stagingEntry.created_by,
         stagingEntry.created_at_epicollect,
         stagingEntry.updated_at_epicolect,
+        stagingEntry.uploaded_at_epicollect,
         JSON.stringify(stagingEntry.payload),
     ],);
 
