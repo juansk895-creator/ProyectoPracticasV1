@@ -1,3 +1,5 @@
+const DEFAULT_FETCH_TIMEOUT_MS = 15000;
+
 function normalizeBaseUrl(baseUrl) {
     return baseUrl.replace(/\+$/, '');
 }
@@ -102,7 +104,65 @@ function buildRequestHeaders(connection) {
 }
 
 async function requestEpicollectJson(url, connection) {
-    const response = await fetch(url, {
+
+    const timeoutMs = options.timeoutMs || DEFAULT_FETCH_TIMEOUT_MS;
+    const controller = new AbortController();
+
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, timeoutMs);
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: buildRequestHeaders(connection),
+            signal: controller.signal,
+        });
+
+        let responseBody = null;
+
+        try {
+            responseBody = await response.json();
+        } catch {
+            responseBody = null;
+        }
+
+        if (!response.ok) {
+            const error = new Error(
+                `Epicollect respondió con estado HTTP ${response.status}.`,
+            );
+
+            error.code = 'EPICOLLECT_HTTP_ERROR';
+            error.statusCode = response.status;
+            error.responseBody = responseBody;
+            error.requestUrl = url;
+
+            throw error;
+        }
+
+        return {
+            statusCode: response.status,
+            body: responseBody,
+        };
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            const timeoutError = new Error(
+                `La solicitud a Epicollect excedióo el tiempo límite de ${timeoutMs} ms.`,
+            );
+
+            timeoutError.code = 'EPICOLLECT_TIMEOUT';
+            timeoutError.statusCode = 504;
+            timeoutError.requestUrl = url;
+
+            throw timeoutError;
+        }
+
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+
+    /*const response = await fetch(url, {
         method: 'GET',
         headers: buildRequestHeaders(connection),
     });
@@ -131,6 +191,7 @@ async function requestEpicollectJson(url, connection) {
         statusCode: response.status,
         body: responseBody,
     };
+    */
 }
 
 async function testEpicollectConnection(connection) {

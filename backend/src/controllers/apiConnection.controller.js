@@ -4,6 +4,17 @@ const epicollectService = require('../services/epicollect.service');
 const syncService = require('../services/sync.service');
 const syncLogModel = require('../models/syncLog.model');
 
+const { validateCreateConnection, validateUpdateConnection } = require('../validations/apiConnection.validator');
+const { filterConnection, filterConnections } = require('../utils/filter');
+
+function sendValidationError(res, errors) {
+    return res.status(400).json({
+        status: 'error',
+        code: 'INVALID_CONNECTION_PAYLOAD',
+        message: 'La configuración de la conexión API no es válida',
+        errors,
+    });
+}
 
 function isValidRequiredString(value) {
     return typeof value ==='string' && value.trim().length > 0;
@@ -16,11 +27,13 @@ async function getConnections(req, res) {
         res.json({
             status: 'ok',
             count: connections.length,
-            data: connections,
+            //data: connections,
+            data: filterConnections(connections),
         });
     } catch (error) {
         res.status(500).json({
             status: 'error',
+            code: 'CONNECTION_LIST_FAILED',
             message: 'Error al consultar conexiones API',
             detail: error.message,
         });
@@ -35,17 +48,20 @@ async function getConnectionById(req, res) {
         if (!connection) {
             return res.status(404).json({
                 status: 'error',
+                code: 'CONNECTION_NOT_FOUND',
                 message: 'Conexión API no encontrada',
             });
         }
 
         return res.json({
             status: 'ok',
-            data: connection,
+            //data: connection,
+            data: filterConnection(connection),
         });
     } catch (error) {
         return res.status(500).json({
             status: 'error',
+            code: 'CONNECTION_REAR_FAILED',
             message: 'Error al consultar la conexión API',
             detail: error.message,
         });
@@ -53,7 +69,52 @@ async function getConnectionById(req, res) {
 }
 
 async function createConnection(req, res) {
+    
     try {
+        const validation = validateCreateConnection(req.body);
+
+        if (!validation.isValid) {
+            return sendValidationError(res, validation.errors);
+        }
+
+        const createdConnection = await apiConnectionModel.createConnection(
+            validation.data,
+        );
+
+        return res.status(201).json({
+            status: 'ok',
+            message: 'Conexión API creada correctamente.',
+            data: filterConnection(createdConnection),
+        });
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(409).json({
+                status: 'error',
+                code: 'CONNECTION_DUPLICATED',
+                message: 'Ya existe una conexión registrada...',
+            });
+        }
+
+        if (error.code === '23514') {
+            return res.status(400).json({
+                status: 'error',
+                code: 'DATABASE_CONSTRAINT_FAILED',
+                message: 'Uno de los valores enviados no pasó las restricciones.',
+                detail: error.message,
+            });
+        }
+
+        return res.status(500).json({
+            status: 'error',
+            code: 'CONNECTION_CREATE_FAILED',
+            message: 'Error al crear la conexión API',
+            detail: error.message,
+        });
+    }
+
+
+
+    /*try {
         const { //revisar orden
             name,
             project_slug,
@@ -130,21 +191,28 @@ async function createConnection(req, res) {
             message: 'Error al crear la conexión API',
             detail: error.message,
          });
-    }
+    }*/
 }
 
 async function updateConnection(req, res) {
     try {
         const { id } = req.params;
+        const validation = validateUpdateConnection(req.body);
+
+        if (!validation.isValid) {
+            return sendValidationError(res, validation.errors);
+        }
 
         const updatedConnection = await apiConnectionModel.updateConnection(
             id,
-            req.body,
+            //req.body,
+            validation.data,
         );
 
         if (!updatedConnection) {
             return res.status(404).json({
                 status: 'error',
+                code: 'CONNECTION_NOT_FOUND',
                 message: 'Conexión API no encontrada',
             });
         }
@@ -152,27 +220,30 @@ async function updateConnection(req, res) {
         return res.json({
             status: 'ok',
             message: 'Conexión API actualizada correctamente',
-            data: updatedConnection,
+            //data: updatedConnection,
+            data: filterConnection(updatedConnection),
         });
     } catch (error) {
         if (error.code === '23505') {
             return res.status(409).json({
                 status:'error',
-                message:
-                    'La actualización genera una conexión duplicada para ese provider, project_slug y form ref',
+                code: 'CONNECTION_DUPLICATED',
+                message: 'La actualización genera una conexión duplicada...',
             });
         }
 
         if (error.code === '23514') {
             return res.status(400).json ({
                 status: 'error',
-                message: 'Uno de los valores ennviados no cumple las restricciones medidas,',
+                code: 'DATABASE_CONSTRAINT_FAILED',
+                message: 'Uno de los valores ennviados no pasó las restricciones.',
                 detail: error.message,
             });
         }
 
         return res.status(500).json({
             status: 'error',
+            code: 'CONNECTION_UPDATE_FAILED',
             message: 'Error al actualizar la conexión API',
             detail: error.message,
         });
@@ -191,6 +262,7 @@ async function deactivateConnection(req, res){
         if (!connection) {
             return res.status(404).json({
                 status: 'error',
+                code: 'CONNECTION_NOT_FOUND',
                 message: 'Conexión API no encontrada',
             });
         }
@@ -198,11 +270,13 @@ async function deactivateConnection(req, res){
         return res.json({
             status: 'ok',
             message: 'Conexión API desactivada correctamente',
-            data: connection,
+            //data: connection,
+            data: filterConnection(connection),
         });
     } catch (error) {
         return res.status(500).json({
             status: 'error',
+            code: 'CONNECTION_DEACTIVATE_FAILED',
             message: 'Error al desactivar la conexión API',
             detail: error.message,
         });
@@ -221,6 +295,7 @@ async function activateConnection(req, res) {
         if (!connection) {
             return res.status(404).json({
                 status: 'error',
+                code: 'CONNECTION_NOT_FOUND',
                 message: 'Conexión API no encontrada',
             });
         }
@@ -228,11 +303,13 @@ async function activateConnection(req, res) {
         return res.json({
             status: 'ok',
             message: 'Conexión API activada correctamente',
-            data: connection,
+            //data: connection,
+            data: filterConnection(connection),
         });
     } catch (error) {
         return res.status(500).json({
             status: 'error',
+            code: 'CONNECTION_ACTIVATE_FAILED',
             message: 'Error al activar la conexión API',
             detail: error.message,
         });
@@ -243,12 +320,12 @@ async function testConnection(req, res) {
     const { id } = req.params;
 
     try {
-        const connection = 
-            await apiConnectionModel.findConnectionWithTokenById(id);
+        const connection = await apiConnectionModel.findConnectionWithTokenById(id);
 
         if (!connection) {
             return res.status(404).json({
                 status: 'error',
+                code: 'CONNECTION_NOT_FOUND',
                 message: 'Conexión API no encontrada',
             });
         }
@@ -256,26 +333,25 @@ async function testConnection(req, res) {
         if (!connection.is_active) {
             return res.status(400).json({
                 status: 'error',
-                message:
-                    'La conexión API está desactivada. Actívala antes de probar conectividad.',
+                code: 'CONNECTION_INACTIVE',
+                message: 'La conexión API está desactivada. Actívala antes de probar conectividad.',
             });
         }
 
-        const testResult = 
-            await epicollectService.testEpicollectConnection(connection);
+        const testResult = await epicollectService.testEpicollectConnection(connection);
         
-        const updatedConnection = 
-            await apiConnectionModel.updateConnectionTestStatus(
-                id,
-                'success',
-                null,
-            );
+        const updatedConnection = await apiConnectionModel.updateConnectionTestStatus(
+            id,
+            'success',
+            null,
+        );
         
         return res.json({
             status: 'ok',
             message: 'Conexión API validada correctamente',
             data: {
-                connection: updatedConnection,
+                //connection: updatedConnection,
+                connection: filterConnection(updatedConnection),
                 test: {
                     statusCode: testResult.statusCode,
                     entriesCount: testResult.entriesCount,
@@ -285,7 +361,9 @@ async function testConnection(req, res) {
         });
     } catch (error) {
         const safeErrorMessage = 
-            error.statusCode
+            error.code === 'EPICOLLECT_TIMEOUT'
+                ? 'La solicitud a Epicollect excedió el tiempo límite configurado'
+                : error.statusCode
                 ? `Error de conectividad con Epicollect. HTTP ${error.statusCode}.`
                 : error.message;
             
@@ -296,12 +374,14 @@ async function testConnection(req, res) {
                 safeErrorMessage,
             );
                 
-        return res,status(502).json({
+        return res.status(502).json({
             status: 'error',
+            code: error.code || 'EPICOLLECT_TEST_FAILED',
             message: 'No fue posible validar la conexión API.',
             detail: safeErrorMessage,
             data: {
-                connection: updatedConnection,
+                //connection: updatedConnection,
+                connection: filterConnection(updatedConnection),
             },
         });
     }
@@ -323,13 +403,7 @@ async function syncConnection(req, res) {
         if (!connection) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Conexión API no encontrada',
-            });
-        }
-
-        if (!connection) {
-            return res.status(404).json({
-                status: 'error',
+                code: 'CONNECTION_NOT FOUND',
                 message: 'Conexión API no encontrada',
             });
         }
@@ -337,6 +411,7 @@ async function syncConnection(req, res) {
         if (!connection.is_active) {
             return res.status(400).json({
                 status: 'error',
+                code: 'CONNECTION_INACTIVE',
                 message: 'La conexión API está desactivada, no es posible sincronizar',
             });
         }
@@ -347,7 +422,7 @@ async function syncConnection(req, res) {
         const syncStatus = syncResult.database.skipped > 0 ? 'partial' : 'success';
 
 
-        const updatedConnection = await apiConnectionModel.updateConnectionSyncSate(id, {
+        const updatedConnection = await apiConnectionModel.updateConnectionSyncState(id, {
             status: syncStatus,
             cursor: nextCursor,
             errorMessage: null,
@@ -381,15 +456,18 @@ async function syncConnection(req, res) {
             status: 'ok',
             message: 'Sincronización ejecutada correctamente',
             data: {
-                connection: updatedConnection,
+                //connection: updatedConnection,
+                connection: filterConnection(updatedConnection),
                 sync: syncResult,
                 log: syncLog,
             },
         });
     } catch (error) {
-        const safeErrorMessage = error.statusCode ?
-            `Error al sincronizar desde Epicollect. HTTP ${error.statusCode}.` :
-            error.message;
+        const safeErrorMessage = error.code === 'EPICOLLECT_TIMEOUT'
+            ? 'La solicitud a Epicollect excedió el tiempo límite configurado.'
+            : error.statusCode
+            ? `Error al sincronizar desde Epicollect. HTTP ${error.statusCode},`
+            : error.message;
         
         if (connection) {
             await apiConnectionModel.updateConnectionSyncState(id, {
@@ -429,6 +507,7 @@ async function syncConnection(req, res) {
         
         return res.status(502).json({
             status: 'error',
+            code: error.code || 'EPICOLLECT_SYNC_FAILED',
             message: 'No fue posible ejecutar la sincronización',
             detail: safeErrorMessage,
         });
