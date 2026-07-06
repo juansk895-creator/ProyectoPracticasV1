@@ -317,16 +317,243 @@ export default function ApiManager() {
                             </label>
                         )}
 
+                        <div className='grid grid-cols-2 gap-3'>
+                            <label className='block'>
+                                <span className='text-sm font-medium'>Por página</span>
+                                <input
+                                    className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                    name='sync_per_page'
+                                    type='number'
+                                    value={formData.sync_per_page}
+                                    onChange={handleInputChange}
+                                />
+                            </label>
 
+                            <label className='block'>
+                                <span className='text-sm font-medium'>Página máxima</span>
+                                <input
+                                    className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                    name='sync_max_pages'
+                                    type='number'
+                                    value={formData.sync_max_pages}
+                                    onChange={handleInputChange}
+                                />
+                            </label>
+
+                            <label className='block'>
+                                <span className='text-sm font-medium'>Retraso ms</span>
+                                <input
+                                    className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                    name='sync_delay_ms'
+                                    type='number'
+                                    value={formData.sync_delay_ms}
+                                    onChange={handleInputChange}
+                                />
+                            </label>
+
+                            <label className='block'>
+                                <span className='text-sm font-medium'>Overlap min</span>
+                                <input
+                                    className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                    name='sync_overlap_minutes'
+                                    type='number'
+                                    value={formData.sync_overlap_minutes}
+                                    onChange={handleInputChange}
+                                />
+                            </label>
+                        </div>
+
+                        <button
+                            className='w-full rounded-lg bg-slate-900 px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50'
+                            disabled={createMutation.isPending}
+                            type='submit'
+                        >
+                            {createMutation.isPending ? 'Guardando...' : 'Crear conexión'}
+                        </button>
                     </form>
 
-                    
+                    <section className='rounded-xl bg-white p-5 shadow-sm'>
+                        <div className='mb-4'>
+                            <h2>Conexiones registradas</h2>
+                            <p className='text-sm text-slate-500'>
+                                Administra conectividad y sincronización
+                            </p>
+                        </div>
+
+                        {isLoading ? (
+                            <p className='text-sm text-slate-500'>Cargando datos...</p>
+                        ) : connections.length === 0 ? (
+                            <p className='text-sm text-slate-500'>
+                                No hay conexiones registradas
+                            </p>
+                        ) : (
+                            <div className='space-y-4'>
+                                {connections.map((connection) => (
+                                    <article
+                                    className='rounded-lg border border-slate-200 p-4'
+                                    key={connection.id}
+                                >
+                                    <div className='flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between'>
+                                        <div>
+                                            <h3 className='font-semibold'>{connection.name}</h3>
+                                            <p className='text-sm text-slate-500'>
+                                                {connection.provider} / {connection.project_slug}
+                                            </p>
+                                            <p className='text-xs text-slate-400'>
+                                                Auth: {connection.auth_type} . Activa:{' '}
+                                                {connection.is_active ? 'sí' : 'no'}
+                                            </p>
+                                        </div>
+
+                                        <div className='flex flex-wrap gap-2'>
+                                            <button
+                                                className='rounded-md border border-slate-300 px-3 py-1 text-sm'
+                                                disabled={isMutating}
+                                                onClick={() => testMutation.mutate(connection.id)}
+                                                type='button'
+                                            >
+                                                Probar
+                                            </button>
+
+                                            <button
+                                                className='rounded-md border border-slate-300 px-3 py-1 text-sm'
+                                                disabled={isMutating}
+                                                onClick={() => syncMutation.mutate(connection.id)}
+                                                type='button'
+                                            >
+                                                Sincronizar
+                                            </button>
+
+                                            {connection.is_active ? (
+                                                <button
+                                                    className='rounded-md border border-red-300 px-3 py-1 text-sm text-red-700'
+                                                    disabled={isMutating}
+                                                    onClick={() => 
+                                                        deactivateMutation.mutate(connection.id)
+                                                    }
+                                                    type='button'
+                                                >
+                                                    Desactivar
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className='rounded-md border border-emeral-300 px-3 py-1 text-sm text-emerald-700'
+                                                    disabled={isMutating}
+                                                    onClick={() =>
+                                                        activateMutation.mutate(connection.id)
+                                                    }
+                                                    type='button'
+                                                >
+                                                    Activar
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <dl className='mt-4 grid gap-3 text-sm md:grid-cols-3'>
+                                        <div>
+                                            <dt className='text-slate-500'>Test</dt>
+                                            <dd className='font-medium'>
+                                                {connection.last_test_status}
+                                            </dd>
+                                        </div>
+
+                                        <div>
+                                            <dt className='text-slate-500'>Última sync</dt>
+                                            <dd className='font-medium'>
+                                                {formatDate(connection.last_sync_at)}
+                                            </dd>
+                                        </div>
+
+                                        <div>
+                                            <dt className='text-slate-500'>Estado sync</dt>
+                                            <dd className='font-medium'>
+                                                {connection.last_test_status}
+                                            </dd>
+                                        </div>
+
+                                        <div>
+                                            <dt className='text-slate-500'>Cursor</dt>
+                                            <dd className='break-all text-us'>
+                                                {connection.sync_cursor || '-'}
+                                            </dd>
+                                        </div>
+
+                                        <div>
+                                            <dt className='text-slate-500'>Por página</dt>
+                                            <dd>{connection.sync_per_page}</dd>
+                                        </div>
+
+                                        <div>
+                                            <dt className='text-slate-500'>Página máxima</dt>
+                                            <dd>{connection.sync_max_pages}</dd>
+                                        </div>
+                                    </dl>
+                                </article>
+                            ))}
+                        </div>
+                    )}
                 </section>
             </section>
-        </main>
-    );
+
+            <section className='rounded-xl bg-white p-5 shadow-sm'>
+                <div className='mb-4'>
+                    <h2 className='text-lg font-semibold'>
+                        Últimos logs de sincronización
+                        </h2>
+                    <p className='text-sm text-slate-500'>
+                        Historial operativo reciente del sincronizador
+                    </p>
+                </div>
+
+                {logs.length === 0 ? (
+                    <p className='text-sm text-slate-500'>
+                        Todavía no hay logs registrados
+                    </p>
+                ) : (
+                    <div className='overflow-x-auto'>
+                        <table className='w-full min-w-[900px] border-collapse text-sm'>
+                            <thead>
+                                <tr className='border-b bg-slate-50 text-left'>
+                                    <th className='p-2'>Proyecto</th>
+                                    <th className='p-2'>Estado</th>
+                                    <th className='p-2'>Modo</th>
+                                    <th className='p-2'>Obtenidos</th>
+                                    <th className='p-2'>Procesados</th>
+                                    <th className='p-2'>Omitidos</th>
+                                    <th className='p-2'>Duración</th>
+                                    <th className='p-2'>Inicio</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {logs.map((log) => (
+                                    <tr className='border-b' key={log.id}>
+                                        <td className='p-2'>{log.project_slug}</td>
+                                        <td className='p-2'>{log.status}</td>
+                                        <td className='p-2'>{log.mode || '-'}</td>
+                                        <td className='p-2'>{log.total_entries_fetched}</td>
+                                        <td className='p-2'>{log.processed_count}</td>
+                                        <td className='p-2'>{log.skipped_count}</td>
+                                        <td className='p-2'>{log.duration_ms}</td>
+                                        <td className='p-2'>{formatDate(log.started_at)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </section>
+        </section>
+    </main>
+);
 }
 
+
+
+
+
+                 
 
 
 

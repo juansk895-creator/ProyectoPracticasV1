@@ -7,6 +7,7 @@ import ApiManager from "./pages/ApiManager";
 
 import "./App.css";
 
+/*
 function App() {
   const [count, setCount] = useState(0);
 
@@ -121,5 +122,10 @@ function App() {
     </>
   );
 }
+  */
 
-export default App;
+//export default App;
+
+export default function App() {
+  return <ApiManager />;
+}
