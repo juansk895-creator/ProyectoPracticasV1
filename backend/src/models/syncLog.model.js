@@ -185,6 +185,8 @@ async function findAllSyncLogs(limit = 50) {
     `,[
         limit
     ],);
+
+    return result.rows;
 }
 
 module.exports = {
