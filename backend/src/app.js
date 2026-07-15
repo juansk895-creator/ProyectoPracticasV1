@@ -4,6 +4,9 @@ const healthRoutes = require('./routes/health.routes');
 //Rutas de conexión
 const apiConnectionRoutes = require('./routes/apiConnection.routes');
 const syncLogRoutes = require('./routes/syncLog.routes');
+//
+//import stagingEntryRoutes from './routes/stagingEntry.routes.js';
+const stagingEntryRoutes = require('./routes/stagingEntry.routes');
 
 const app = express();
 
@@ -35,5 +38,6 @@ app.use((error, req, res, next) => {
 app.use('/api', healthRoutes);
 app.use('/api', apiConnectionRoutes);
 app.use('/api', syncLogRoutes);
+app.use('/api/staging', stagingEntryRoutes);
 
 module.exports = app;

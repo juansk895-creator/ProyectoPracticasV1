@@ -73,10 +73,3 @@ export function getConnectionSyncLogs(id, limit = 20) {
     return apiRequest(`/connections/${id}/sync-logs?limit=${limit}`);
 }
 
-
-
-
-
-
-
-
