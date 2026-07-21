@@ -1,5 +1,10 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+//import { apiRequest } from "./api.service";
 
+//const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+import { apiRequest } from './api.service';
+
+
+/*
 async function apiRequest(endpoint, options = {}) {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
@@ -29,6 +34,7 @@ async function apiRequest(endpoint, options = {}) {
     }
     return payload;
 }
+*/
 
 export function getConnections() {
     return apiRequest('/connections');

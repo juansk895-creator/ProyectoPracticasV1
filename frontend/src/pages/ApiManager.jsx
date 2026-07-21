@@ -218,7 +218,7 @@ export default function ApiManager() {
 
                     <article className='rounded-xl bg-white p-4 shadow-sm'>
                         <p className='text-sm text-slate-500'>Conexiones activas</p>
-                        <p className='mt-2 text-3xl font-bold'>{}</p>
+                        <p className='mt-2 text-3xl font-bold'>{activeConnectionsCount}</p>
                     </article>
 
                     <article className='rounded-xl bg-white p-4 shadow-sm'>
@@ -548,14 +548,5 @@ export default function ApiManager() {
     </main>
 );
 }
-
-
-
-
-
-                 
-
-
-
 
 
