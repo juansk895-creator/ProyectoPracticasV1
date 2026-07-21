@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import {
-    keepPreviousData,
-    useQuery,
-} from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { getConnections } from '../services/apiManager.service';
 import { getStagingEntries } from '../services/staging.service';
+
+import VirtualizedDataTable from '../components/VirtualizedDataTable';
+
 
 const OPERATORS = [
     { value: 'contains', label: 'Contiene' },
@@ -41,6 +41,7 @@ function getErrorMessage(error) {
     );
 }
 
+/* Ahora estas funciones se encuentran en VirtualizedDataTable.jsx
 function getNestedValue(source, path) {
     if (!source || !path) {
         return null;
@@ -89,6 +90,7 @@ function formatCellValue(value, column) {
 
     return String(value);
 }
+*/
 
 export default function DataExplorer() {
     const [selectedConnectionId, setSelectedConnectionId] =
@@ -180,6 +182,16 @@ export default function DataExplorer() {
             has_previous: false,
             has_next: false,
         };
+
+    const tableResetKey = JSON.stringify({
+        connectionId: selectedConnection?.id || null,
+        page,
+        pageSize,
+        search,
+        filters,
+        sortBy,
+        sortOrder,
+    });
 
     function resetQueryState() {
         setPage(1);
@@ -389,6 +401,16 @@ export default function DataExplorer() {
                                 </option>
                                 <option value={100}>
                                     100
+                                </option>
+                                //Nuevas opciones
+                                <option value={250}>
+                                    250
+                                </option>
+                                <option value={500}>
+                                    500
+                                </option>
+                                <option value={1000}>
+                                    1,000
                                 </option>
                             </select>
                         </label>
@@ -618,70 +640,12 @@ export default function DataExplorer() {
                             No hay registros que coincidan con la consulta.
                         </p>
                     ) : (
-                        <div className='overflow-x-auto'>
-                            <table className='min-w-max border-collapse text-left text-sm'>
-                                <thead>
-                                    <tr className='border-b bg-slate-50'>
-                                        {columns.map(
-                                            (column) => (
-                                                <th
-                                                    className='min-w-40 border-r border-slate-200 p-3 font-semibold'
-                                                    key={
-                                                        column.key
-                                                    }
-                                                >
-                                                    {
-                                                        column.label
-                                                    }
-                                                </th>
-                                            ),
-                                        )}
-                                    </tr>
-                                </thead>
 
-                                <tbody>
-                                    {rows.map((row) => (
-                                        <tr
-                                            className='border-b hover:bg-slate-50'
-                                            key={
-                                                row.ec5_uuid
-                                            }
-                                        >
-                                            {columns.map(
-                                                (column) => {
-                                                    const formattedValue =
-                                                        formatCellValue(
-                                                            getCellValue(
-                                                                row,
-                                                                column,
-                                                            ),
-                                                            column,
-                                                        );
-
-                                                    return (
-                                                        <td
-                                                            className='max-w-80 border-r border-slate-100 p-3'
-                                                            key={
-                                                                column.key
-                                                            }
-                                                            title={
-                                                                formattedValue
-                                                            }
-                                                        >
-                                                            <div className='max-w-72 truncate'>
-                                                                {
-                                                                    formattedValue
-                                                                }
-                                                            </div>
-                                                        </td>
-                                                    );
-                                                },
-                                            )}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <VirtualizedDataTable
+                            columns={columns}
+                            resetKey={tableResetKey}
+                            rows={rows}
+                        />
                     )}
 
                     <footer className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4'>

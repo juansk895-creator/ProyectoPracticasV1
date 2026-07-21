@@ -9,7 +9,7 @@ const { parseFilters, normalizeSortOptions, } = require('../services/stagingQuer
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9_-]+$/;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 50;
-const MAX_PAGE_SIZE = 200;
+const MAX_PAGE_SIZE = 1_000;
 
 const TECHNICAL_COLUMNS = [
     {
