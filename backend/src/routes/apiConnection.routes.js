@@ -4,11 +4,11 @@ const apiConnectionController = require('../controllers/apiConnection.controller
 const router = express.Router();
 
 router.get('/connections', apiConnectionController.getConnections);
-router.get('/connections/:id', apiConnectionController. getConnectionById);
+router.get('/connections/:id', apiConnectionController.getConnectionById);
 router.post('/connections', apiConnectionController.createConnection);
 router.put('/connections/:id', apiConnectionController.updateConnection);
 
-router.patch( '/connection/:id/test', apiConnectionController.testConnection );
+router.patch( '/connections/:id/test', apiConnectionController.testConnection );
 
 router.patch( '/connections/:id/sync', apiConnectionController.syncConnection );
 

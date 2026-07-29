@@ -208,7 +208,7 @@ async function updateConnectionTestStatus(id, testStatus, errorMessage = null) {
         SET
             last_test_at = now(),
             last_test_status = $2,
-            last_error_message = $3,
+            last_error_message = $3
         WHERE id = $1
         RETURNING ${publicConnectionFields}
         `,
