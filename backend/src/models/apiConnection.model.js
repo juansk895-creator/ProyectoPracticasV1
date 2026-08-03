@@ -122,7 +122,7 @@ async function updateConnection(id, connectionData) {
             name = COALESCE($2, name),
             provider = COALESCE($3, provider),
             project_slug = COALESCE($4, project_slug),
-            form_ref = COALESCE($5, form ref),
+            form_ref = COALESCE($5, form_ref),
             base_url = COALESCE($6, base_url),
             auth_type = COALESCE($7, auth_type),
             auth_token = COALESCE($8, auth_token),
@@ -203,7 +203,7 @@ async function findConnectionWithTokenById(id) {
 }
 
 async function updateConnectionTestStatus(id, testStatus, errorMessage = null) {
-    const restul = await pool.query(`
+    const result = await pool.query(`
         UPDATE api_connections
         SET
             last_test_at = now(),

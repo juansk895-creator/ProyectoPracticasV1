@@ -9,6 +9,7 @@ import {
     getSyncLogs,
     syncConnection,
     testConnection,
+    updateConnection,
 } from '../services/apiManager.service';
 
 
@@ -41,12 +42,13 @@ function getErrorMessage(error) {
         return errors.map((item) => item.message).join('  ');
     }
 
-    return error?.payload?.detail || error?.message || 'Error desconocido,';
+    return error?.payload?.detail || error?.message || 'Error desconocido.';
 }
 
 export default function ApiManager() {
     const queryClient = useQueryClient();
     const [formData, setFormData] = useState(initialFormState);
+    const [editingConnectionId, setEditingConnectionId] = useState(null);
     const [operationMessage, setOperationMessage] = useState(null);
 
     const connectionsQuery = useQuery({
@@ -61,6 +63,10 @@ export default function ApiManager() {
 
     const connections = connectionsQuery.data?.data || [];
     const logs = syncLogsQuery.data?.data || [];
+    const editingConnection = connections.find(
+        (connection) => connection.id === editingConnectionId,
+    );
+    const isEditing = Boolean(editingConnectionId);
 
     const isLoading = connectionsQuery.isLoading || syncLogsQuery.isLoading;
 
@@ -78,8 +84,28 @@ export default function ApiManager() {
         onSuccess: () => {
             setOperationMessage({
                 type: 'success',
-                text: 'Conexión creada correctamente',
+                text: 'Conexión creada correctamente.',
             });
+            setFormData(initialFormState);
+            invalidateApiManagerQueries();
+        },
+        onError: (error) => {
+            setOperationMessage({
+                type: 'error',
+                text: getErrorMessage(error),
+            });
+        },
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: ({ id, connectionData }) =>
+            updateConnection(id, connectionData),
+        onSuccess: () => {
+            setOperationMessage({
+                type: 'success',
+                text: 'Conexión actualizada correctamente.',
+            });
+            setEditingConnectionId(null);
             setFormData(initialFormState);
             invalidateApiManagerQueries();
         },
@@ -176,18 +202,64 @@ export default function ApiManager() {
     function handleSubmit(event) {
         event.preventDefault();
 
+        const authToken = formData.auth_token.trim();
         const payload = {
             ...formData,
+            name: formData.name.trim(),
+            project_slug: formData.project_slug.trim(),
             form_ref: formData.form_ref.trim() || null,
-            auth_token: formData.auth_type === 'none'
-                ? undefined : formData.auth_token.trim(),
+            base_url: formData.base_url.trim(),
+            auth_token:
+                formData.auth_type === 'none' || !authToken
+                    ? undefined
+                    : authToken,
         };
+
+        if (isEditing) {
+            updateMutation.mutate({
+                id: editingConnectionId,
+                connectionData: payload,
+            });
+            return;
+        }
 
         createMutation.mutate(payload);
     }
 
+    function handleStartEdit(connection) {
+        setEditingConnectionId(connection.id);
+        setOperationMessage(null);
+        setFormData({
+            name: connection.name ?? '',
+            project_slug: connection.project_slug ?? '',
+            form_ref: connection.form_ref ?? '',
+            base_url:
+                connection.base_url ?? initialFormState.base_url,
+            auth_type: connection.auth_type ?? 'none',
+            auth_token: '',
+            sync_filter_by:
+                connection.sync_filter_by ?? initialFormState.sync_filter_by,
+            sync_per_page:
+                connection.sync_per_page ?? initialFormState.sync_per_page,
+            sync_max_pages:
+                connection.sync_max_pages ?? initialFormState.sync_max_pages,
+            sync_delay_ms:
+                connection.sync_delay_ms ?? initialFormState.sync_delay_ms,
+            sync_overlap_minutes:
+                connection.sync_overlap_minutes ??
+                initialFormState.sync_overlap_minutes,
+        });
+    }
+
+    function handleCancelEdit() {
+        setEditingConnectionId(null);
+        setFormData(initialFormState);
+        setOperationMessage(null);
+    }
+
     const isMutating = 
         createMutation.isPending ||
+        updateMutation.isPending ||
         activateMutation.isPending ||
         deactivateMutation.isPending ||
         testMutation.isPending ||
@@ -240,17 +312,29 @@ export default function ApiManager() {
                 <section className='grid gap-6 lg:grid-cols-[420px_1fr]'>
                     <form onSubmit={handleSubmit} className='space-y-4 rounded-xl bg-white p-5 shadow-sm'>
                         <div>
-                            <h2 className='text-lg font-semibold'>Nueva conexión</h2>
+                            <h2 className='text-lg font-semibold'>
+                                {isEditing ? 'Editar conexión' : 'Nueva conexión'}
+                            </h2>
                             <p className='text-sm text-slate-500'>
-                                Registra una conexión para consumir datos desde Epicollect5.
+                                {isEditing
+                                    ? `Modifica la conexión ${editingConnection?.name || ''}.`
+                                    : 'Registra una conexión para consumir datos desde Epicollect5.'}
                             </p>
                         </div>
+
+                        {isEditing && (
+                            <div className='rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800'>
+                                Si cambias el Project slug o el Form ref, las próximas
+                                sincronizaciones consultarán una fuente distinta.
+                            </div>
+                        )}
 
                         <label className='block'>
                             <span className='text-sm font-medium'>Nombre</span>
                             <input
-                                className='mt-1 w-full rounded-lg border border-slate-300 py-2'
+                                className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
                                 name='name'
+                                required
                                 value={formData.name}
                                 onChange={handleInputChange}
                                 placeholder='Epicollect Public Test'
@@ -262,6 +346,7 @@ export default function ApiManager() {
                             <input
                                 className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
                                 name='project_slug'
+                                required
                                 value={formData.project_slug}
                                 onChange={handleInputChange}
                                 placeholder='ec5-api-test'
@@ -284,6 +369,7 @@ export default function ApiManager() {
                             <input
                                 className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
                                 name='base_url'
+                                required
                                 value={formData.base_url}
                                 onChange={handleInputChange}
                             />
@@ -312,10 +398,28 @@ export default function ApiManager() {
                                     type='password'
                                     value={formData.auth_token}
                                     onChange={handleInputChange}
-                                    placeholder='Token de acceso'
+                                    placeholder={
+                                        editingConnection?.has_auth_token
+                                            ? 'Dejar vacío para conservar el token actual'
+                                            : 'Token de acceso'
+                                    }
                                 />
                             </label>
                         )}
+
+                        <label className='block'>
+                            <span className='text-sm font-medium'>Filtro incremental</span>
+                            <select
+                                className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                name='sync_filter_by'
+                                value={formData.sync_filter_by}
+                                onChange={handleInputChange}
+                            >
+                                <option value='uploaded_at'>uploaded_at</option>
+                                <option value='updated_at'>updated_at</option>
+                                <option value='created_at'>created_at</option>
+                            </select>
+                        </label>
 
                         <div className='grid grid-cols-2 gap-3'>
                             <label className='block'>
@@ -363,13 +467,30 @@ export default function ApiManager() {
                             </label>
                         </div>
 
-                        <button
-                            className='w-full rounded-lg bg-slate-900 px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50'
-                            disabled={createMutation.isPending}
-                            type='submit'
-                        >
-                            {createMutation.isPending ? 'Guardando...' : 'Crear conexión'}
-                        </button>
+                        <div className={isEditing ? 'grid grid-cols-2 gap-3' : ''}>
+                            {isEditing && (
+                                <button
+                                    className='rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50'
+                                    disabled={isMutating}
+                                    onClick={handleCancelEdit}
+                                    type='button'
+                                >
+                                    Cancelar
+                                </button>
+                            )}
+
+                            <button
+                                className='w-full rounded-lg bg-slate-900 px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50'
+                                disabled={createMutation.isPending || updateMutation.isPending}
+                                type='submit'
+                            >
+                                {createMutation.isPending || updateMutation.isPending
+                                    ? 'Guardando...'
+                                    : isEditing
+                                      ? 'Guardar cambios'
+                                      : 'Crear conexión'}
+                            </button>
+                        </div>
                     </form>
 
                     <section className='rounded-xl bg-white p-5 shadow-sm'>
@@ -403,9 +524,21 @@ export default function ApiManager() {
                                                 Auth: {connection.auth_type} . Activa:{' '}
                                                 {connection.is_active ? 'sí' : 'no'}
                                             </p>
+                                            <p className='break-all text-xs text-slate-400'>
+                                                Form ref: {connection.form_ref || '-'}
+                                            </p>
                                         </div>
 
                                         <div className='flex flex-wrap gap-2'>
+                                            <button
+                                                className='rounded-md border border-slate-300 px-3 py-1 text-sm'
+                                                disabled={isMutating}
+                                                onClick={() => handleStartEdit(connection)}
+                                                type='button'
+                                            >
+                                                Editar
+                                            </button>
+
                                             <button
                                                 className='rounded-md border border-slate-300 px-3 py-1 text-sm'
                                                 disabled={isMutating}
@@ -437,7 +570,7 @@ export default function ApiManager() {
                                                 </button>
                                             ) : (
                                                 <button
-                                                    className='rounded-md border border-emeral-300 px-3 py-1 text-sm text-emerald-700'
+                                                    className='rounded-md border border-emerald-300 px-3 py-1 text-sm text-emerald-700'
                                                     disabled={isMutating}
                                                     onClick={() =>
                                                         activateMutation.mutate(connection.id)
@@ -468,13 +601,13 @@ export default function ApiManager() {
                                         <div>
                                             <dt className='text-slate-500'>Estado sync</dt>
                                             <dd className='font-medium'>
-                                                {connection.last_test_status}
+                                                {connection.last_sync_status}
                                             </dd>
                                         </div>
 
                                         <div>
                                             <dt className='text-slate-500'>Cursor</dt>
-                                            <dd className='break-all text-us'>
+                                            <dd className='break-all text-xs'>
                                                 {connection.sync_cursor || '-'}
                                             </dd>
                                         </div>

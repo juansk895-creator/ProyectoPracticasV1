@@ -228,7 +228,7 @@ async function updateConnection(req, res) {
             return res.status(409).json({
                 status:'error',
                 code: 'CONNECTION_DUPLICATED',
-                message: 'La actualización genera una conexión duplicada...',
+                message: 'La actualización genera una conexión duplicada.',
             });
         }
 
@@ -236,7 +236,7 @@ async function updateConnection(req, res) {
             return res.status(400).json ({
                 status: 'error',
                 code: 'DATABASE_CONSTRAINT_FAILED',
-                message: 'Uno de los valores ennviados no pasó las restricciones.',
+                message: 'Uno de los valores enviados no pasó las restricciones.',
                 detail: error.message,
             });
         }

@@ -79,3 +79,10 @@ export function getConnectionSyncLogs(id, limit = 20) {
     return apiRequest(`/connections/${id}/sync-logs?limit=${limit}`);
 }
 
+export function updateConnection(id, connectionData) {
+    return apiRequest(`/connections/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(connectionData),
+    });
+}
+

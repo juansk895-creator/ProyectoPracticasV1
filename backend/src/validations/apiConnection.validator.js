@@ -366,7 +366,7 @@ function validateUpdateConnection(payload = {}) {
         errors,
     );
 
-    if (syncParPage !== undefined) {
+    if (syncPerPage !== undefined) {
         data.sync_per_page = syncPerPage;
     }
 

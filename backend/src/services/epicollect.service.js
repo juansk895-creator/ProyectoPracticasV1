@@ -103,7 +103,7 @@ function buildRequestHeaders(connection) {
     };
 }
 
-async function requestEpicollectJson(url, connection) {
+async function requestEpicollectJson(url, connection, options = {}) {
 
     const timeoutMs = options.timeoutMs || DEFAULT_FETCH_TIMEOUT_MS;
     const controller = new AbortController();
@@ -128,6 +128,12 @@ async function requestEpicollectJson(url, connection) {
         }
 
         if (!response.ok) {
+            console.error('Epicollect rechazó la solicitud', JSON.stringify({
+                statusCode: response.status,
+                requestUrl: url,
+                responseBody,
+            }, null, 2,),);
+
             const error = new Error(
                 `Epicollect respondió con estado HTTP ${response.status}.`,
             );
@@ -147,7 +153,7 @@ async function requestEpicollectJson(url, connection) {
     } catch (error) {
         if (error.name === 'AbortError') {
             const timeoutError = new Error(
-                `La solicitud a Epicollect excedióo el tiempo límite de ${timeoutMs} ms.`,
+                `La solicitud a Epicollect excedió el tiempo límite de ${timeoutMs} ms.`,
             );
 
             timeoutError.code = 'EPICOLLECT_TIMEOUT';
