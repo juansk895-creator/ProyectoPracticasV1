@@ -29,7 +29,7 @@ async function createSyncLog(logData) {
         cursor_before = null,
         cursor_after = null,
         total_entries_fetched = 0,
-        procced_count = 0,
+        processed_count = 0,
         skipped_count = 0,
         stopped_by_max_pages = false,
         error_message = null,

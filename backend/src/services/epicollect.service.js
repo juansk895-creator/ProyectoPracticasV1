@@ -330,7 +330,7 @@ async function fetchAllEpicollectEntries(connection, options = {}) {
 
         currentPage +=1;
 
-        const shouldContinue = currentPate <= lastPage && currentPage <= maxPages;
+        const shouldContinue = currentPage <= lastPage && currentPage <= maxPages;
 
         if (shouldContinue && delayMs > 0) {
             await sleep(delayMs);

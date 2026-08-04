@@ -38,11 +38,16 @@ function subtractMinutes(value, minutes) {
 }
 
 function getIncrementalFilterFrom(connection) {
-    if (!connection,sync_cursor) {
+    if (!connection.sync_cursor) {
         return null;
     }
 
     const overlapMinutes = normalizeInteger(
+        connection.sync_overlap_minutes,
+        0,
+    );
+
+    const cursorWithOverlap = subtractMinutes(
         connection.sync_cursor,
         overlapMinutes,
     );
@@ -150,7 +155,7 @@ async function syncConnectionToStaging(connection, options = {}) {
         connection,
     );
 
-    const maxCursorFromEntries = getMaxCursorEntries(
+    const maxCursorFromEntries = getMaxCursorFromEntries(
         fetchResult.entries,
         syncFilterBy,
     );

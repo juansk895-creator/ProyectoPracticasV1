@@ -392,6 +392,12 @@ function calculateDurationMs(startedAt, finishedAt) {
 }
 
 async function syncConnection(req, res) {
+
+    /*console.error(
+        'Error en syncConnection:',
+        error.stack || error,
+    );*/
+
     const { id } = req.params;
 
     let connection = null;
@@ -463,6 +469,12 @@ async function syncConnection(req, res) {
             },
         });
     } catch (error) {
+
+        console.error(
+            'Error en syncConnection:',
+            error.stack || error,
+        );
+
         const safeErrorMessage = error.code === 'EPICOLLECT_TIMEOUT'
             ? 'La solicitud a Epicollect excedió el tiempo límite configurado.'
             : error.statusCode

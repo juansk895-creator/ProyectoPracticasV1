@@ -58,7 +58,7 @@ export default function VirtualizedDataTable({
 
     const rowVirtualizer = useVirtualizer({
         count: rows.length,
-        getCrollElement: () =>
+        getScrollElement: () =>
             scrollContainerRef.current,
         estimateSize: () => ROW_HEIGHT,
         getItemKey: (index) =>
