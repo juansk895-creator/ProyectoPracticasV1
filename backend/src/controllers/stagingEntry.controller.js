@@ -148,7 +148,9 @@ async function getStagingEntries(req, res) {
             }
         }
 
-        const filterResult = parseFilters();
+        const filterResult = parseFilters(
+            req.query.filters,
+        );
 
         errors.push(...filterResult.errors);
 

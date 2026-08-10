@@ -42,11 +42,11 @@ function resolveColumnType(observedTypes) {
 
 function buildDynamicColumns(schemaRows) {
     return schemaRows.filter(
-        (schemaRow) => !EXCLUDED_PAYLOAD_PATHS.has(schemaRow.fieldPath,),
+        (schemaRow) => !EXCLUDED_PAYLOAD_PATHS.has(schemaRow.field_path,),
     ).map((schemaRow) => {
         const observedTypes = schemaRow.observed_types || [];
 
-        const occurrences = Number(schemaRow.total_entries) || 0;
+        const occurrences = Number(schemaRow.occurrences) || 0;
 
         const totalEntries = Number(schemaRow.total_entries) || 0;
 

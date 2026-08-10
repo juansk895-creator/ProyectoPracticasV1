@@ -402,7 +402,7 @@ export default function DataExplorer() {
                                 <option value={100}>
                                     100
                                 </option>
-                                //Nuevas opciones
+                                {/* Nuevas opciones */}
                                 <option value={250}>
                                     250
                                 </option>
