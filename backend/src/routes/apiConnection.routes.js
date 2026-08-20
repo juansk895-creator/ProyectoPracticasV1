@@ -3,6 +3,13 @@ const apiConnectionController = require('../controllers/apiConnection.controller
 
 const router = express.Router();
 
+//Límite
+const {
+    connectionSyncRateLimiter,
+    connectionTestRateLimiter,
+    connectionWriteRateLimiter,
+} = require('../config/rateLimit.config');
+
 router.get('/connections', apiConnectionController.getConnections);
 router.get('/connections/:id', apiConnectionController.getConnectionById);
 router.post('/connections', apiConnectionController.createConnection);

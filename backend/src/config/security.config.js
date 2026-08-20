@@ -1,6 +1,6 @@
 const DEVELOPMENT_ORIGINS = Object.freeze([
     'http://localhost:5173',
-    'hhtp://127.0.0.1:5173',
+    'http://127.0.0.1:5173',
 ]);
 
 const PERMISSIONS_POLICY = [
@@ -42,6 +42,22 @@ function getAllowedOrigins(environment = process.env) {
 }
 
 function createCorsOptions(environment = process.env) {
+    
+    //Comprobar
+    const allowedOrigins = new Set(getAllowedOrigins(environment));
+    
+    return {
+        allowedHeaders: ['Content-Type'],
+
+        exposedHeaders: [
+            'RateLimit',
+            'RateLimit-Policy',
+            'Retry-After',
+        ],
+        credentials: false,
+        optionsSuccessStatus: 204,
+    }
+    /*
     const allowedOrigins = new Set(getAllowedOrigins(environment));
 
     return {
@@ -65,17 +81,23 @@ function createCorsOptions(environment = process.env) {
         credentials: false,
         optionsSuccessStatus: 204,
     };
+    */
+
 }
 
 function createHelmetOptions(environment = process.env) {
     const hstsEnabled = environment.ENABLE_HSTS === 'true';
-    const isDevelopment = environment.NODE_ENV !== 'production';
+    //const isDevelopment = environment.NODE_ENV !== 'production';
 
     return {
         contentSecurityPolicy: {
+            useDefault: false,
             directives: {
+                defaultSrc: ["'none'"],
+                baseUri: ["'none'"],
+                formAction: ["'none'"],
                 frameAncestors: ["'none'"],
-                upgradeInsecureRequests: isDevelopment ? null : [],
+                //upgradeInsecureRequests: isDevelopment ? null : [],
             },
         },
 
@@ -88,7 +110,9 @@ function createHelmetOptions(environment = process.env) {
               }
             : false,
 
-        xFrameOptions: { action: 'deny' },
+        xFrameOptions: {
+            action: 'deny',
+        },
 
         referrerPolicy: {
             policy: 'strict-origin-when-cross-origin',
