@@ -19,18 +19,18 @@ CREATE TABLE IF NOT EXISTS entradas_staging (
 );
 
 CREATE INDEX IF NOT EXISTS idx_staging_entries_project_slug
-ON staging_entries (project_slug);
+ON entradas_staging (project_slug);
 
 CREATE INDEX IF NOT EXISTS idx_staging_entries_created_by
-ON staging_entries (created_by);
+ON entradas_staging (created_by);
 
 CREATE INDEX IF NOT EXISTS idx_staging_entries_sync_status
-ON staging_entries (sync_status);
+ON entradas_staging (sync_status);
 
 CREATE INDEX IF NOT EXISTS idx_staging_entries_validation_status
-ON staging_entries (validation_status);
+ON entradas_staging (validation_status);
 
 CREATE INDEX IF NOT EXISTS idx_staging_entries_payload_gin
-ON staging_entries USING GIN (payload);
+ON entradas_staging USING GIN (payload);
 
 

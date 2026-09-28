@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_staging_data:/var/lib/postgresql/postgres_staging_data
+      - postgres_staging_data:/var/lib/postgresql/data
       - ./database/migrations:/docker-entrypoint-initdb.d
   
 volumes:
