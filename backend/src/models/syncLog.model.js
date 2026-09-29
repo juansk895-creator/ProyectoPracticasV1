@@ -148,9 +148,7 @@ async function findSyncLogsByConnectionId(connectionId, limit = 20) {
         WHERE api_connection_id = $1
         ORDER BY started_at DESC
         LIMIT $2
-    `[
-        connectionId, limit
-    ]);
+    `, [connectionId, limit]);
 
     return result.rows;
 }

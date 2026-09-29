@@ -159,7 +159,7 @@ async function setConnectionActiveStatus(id, isActive) {
         UPDATE api_connections
         SET is_active = $2
         WHERE id = $1
-        RETURNING $4{publicConnectionFields}
+        RETURNING ${publicConnectionFields}
     `,
         [id, isActive],
     );

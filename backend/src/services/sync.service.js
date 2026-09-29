@@ -94,38 +94,13 @@ function getMaxCursorFromEntries(entries, filterBy) {
 
 async function syncConnectionToStaging(connection, options = {}) {
 
-    /*
-    const {
-        perPage = 500, //límite
-        maxPages = 10,
-    } = options;
-
-    const fetchResult = await epicollectService.fetchAllEpicollectEntries(
-        connection,
-        {
-            perPage,
-            maxPages,
-        },
-    );
-
-    const upsertSummary = await stagingEntryModel.upsertManyEpicollectEntries(
-        fetchResult.entries,
-        connection,
-    );
-
-    return {
-        fetch: {
-            totalEntriesFetched: fetchResult.totalEntriesFetched,
-            pages: fetchResult.pages,
-            stoppedByMaxPages: fetchResult.stoppedByMaxPages,
-        },
-        database: upsertSummary,
-    };*/
+    
 
     const syncFilterBy = options.filterBy || connection.sync_filter_by || 'uploaded_at';
 
     const perPage = normalizeInteger(
-        options.perPages || connection.sync_per_pages, 500,
+        options.perPages ?? connection.sync_per_page,
+        500,
     );
 
     const maxPages = normalizeInteger(
