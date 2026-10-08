@@ -78,18 +78,7 @@ function buildEntriesUrl(connection, options = {}) {
 }
 
 function buildEntriesTestUrl(connection) {
-    /*const baseUrl = normalizeBaseUrl(connection.base_url);
-    const url = new URL(
-        `${baseUrl}/export/entries/${connection.project_slug}`,
-    );
-    url.searchParams.set('per_page', '1');
-    url.searchParams.set('page', '1');
-    url.searchParams.set('format', 'json');
-    if (connection.form_ref) {
-        url.searchParams.set('form_ref', connection.form_ref);
-    }
-    return url.toString();
-    */
+    
    return buildEntriesUrl(connection, {
     page: 1,
     perPage: 1,
@@ -168,36 +157,6 @@ async function requestEpicollectJson(url, connection, options = {}) {
         clearTimeout(timeoutId);
     }
 
-    /*const response = await fetch(url, {
-        method: 'GET',
-        headers: buildRequestHeaders(connection),
-    });
-
-    let responseBody = null;
-
-    try {
-        responseBody = await response.json();
-    } catch {
-        responseBody = null;
-    }
-
-    if (!response.ok) {
-        const error = new Error(
-            `Epicollect respondió con estado HTTP ${response.status}.`,
-        );
-
-        error.statusCode = response.status;
-        error.responseBody = responseBody;
-        error.requestUrl = url;
-
-        throw error;
-    }
-
-    return {
-        statusCode: response.status,
-        body: responseBody,
-    };
-    */
 }
 
 async function testEpicollectConnection(connection) {
@@ -216,43 +175,6 @@ async function testEpicollectConnection(connection) {
         entriesCount: body?.data?.entries?.length ?? null,
     };
 
-    /*const headers = {
-        Accept: 'application/json',
-        ...buildAuthorizationHeader(connection.auth_type, connection.auth_token),
-    };
-
-    const response = await fetch(testUrl, {
-        method: 'GET',
-        headers,
-    });
-
-    let responseBody = null;
-
-    try {
-        responseBody = await response.json();
-    } catch {
-        responseBody = null;
-    }
-
-    if (!response.ok) {
-        const error = new Error(
-            `Epicollect respondió con estado HTTP ${response.status}.`,
-        );
-
-        error.statusCode = response.status;
-        error.responseBody = responseBody;
-        error.testUrl = testUrl;
-
-        throw error;
-    }
-
-    return {
-        ok: true,
-        statusCode: response.status,
-        testUrl,
-        meta: responseBody?.meta || null,
-        entriesCount: responseBody?.data?.entries?.length ?? null,
-    };*/
 }
 
 async function fetchEpicollectEntriesPage(connection, options = {}) {

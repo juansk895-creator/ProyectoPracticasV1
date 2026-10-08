@@ -57,31 +57,6 @@ function createCorsOptions(environment = process.env) {
         credentials: false,
         optionsSuccessStatus: 204,
     }
-    /*
-    const allowedOrigins = new Set(getAllowedOrigins(environment));
-
-    return {
-        origin(origin, callback) {
-            // Permite Postman, curl, Docker y verificaciones internas sin Origin.
-            if (!origin || allowedOrigins.has(origin)) {
-                return callback(null, true);
-            }
-
-            const error = new Error(
-                'Origen no permitido por la política CORS.',
-            );
-
-            error.code = 'CORS_ORIGIN_DENIED';
-            error.status = 403;
-
-            return callback(error);
-        },
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'],
-        allowedHeaders: ['Content-Type'],
-        credentials: false,
-        optionsSuccessStatus: 204,
-    };
-    */
 
 }
 

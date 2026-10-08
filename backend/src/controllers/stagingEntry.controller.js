@@ -212,12 +212,7 @@ async function getStagingEntries(req, res) {
             });
         }
 
-        /*const result = await stagingEntryModel.findStagingEntries({
-            projectSlug,
-            formRef,
-            page,
-            pageSize,
-        });*/
+
         const [result, schemaRows] = await Promise.all([
             stagingEntryModel.findStagingEntries({
                 projectSlug,

@@ -41,56 +41,6 @@ function getErrorMessage(error) {
     );
 }
 
-/* Ahora estas funciones se encuentran en VirtualizedDataTable.jsx
-function getNestedValue(source, path) {
-    if (!source || !path) {
-        return null;
-    }
-
-    return path
-        .split('.')
-        .reduce(
-            (current, segment) =>
-                current?.[segment],
-            source,
-        );
-}
-
-function getCellValue(row, column) {
-    if (column.source === 'payload') {
-        return getNestedValue(
-            row.payload,
-            column.path,
-        );
-    }
-
-    return row[column.key];
-}
-
-function formatCellValue(value, column) {
-    if (value === null || value === undefined) {
-        return '-';
-    }
-
-    if (column.type === 'datetime') {
-        const date = new Date(value);
-
-        if (!Number.isNaN(date.getTime())) {
-            return date.toLocaleString();
-        }
-    }
-
-    if (typeof value === 'boolean') {
-        return value ? 'Sí' : 'No';
-    }
-
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
-    }
-
-    return String(value);
-}
-*/
 
 export default function DataExplorer() {
     const [selectedConnectionId, setSelectedConnectionId] =

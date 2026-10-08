@@ -4,38 +4,6 @@
 import { apiRequest } from './api.service';
 
 
-/*
-async function apiRequest(endpoint, options = {}) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        headers: {
-            'Content-Type': 'application/json',
-            ...(options.headers || {}),
-        },
-        ...options,
-    });
-
-    let payload = null;
-
-    try {
-        payload = await response.json();
-    } catch {
-        payload = null;
-    }
-
-    if (!response.ok) {
-        const error = new Error(
-            payload.message || 'La solicitud al backend falló.',
-        );
-
-        error.status = response.status;
-        error.payload = payload;
-
-        throw error;
-    }
-    return payload;
-}
-*/
-
 export function getConnections() {
     return apiRequest('/connections');
 }

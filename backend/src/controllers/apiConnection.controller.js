@@ -112,86 +112,6 @@ async function createConnection(req, res) {
         });
     }
 
-
-
-    /*try {
-        const { //revisar orden
-            name,
-            project_slug,
-            base_url,
-            auth_token,
-            provider,
-            form_ref,
-            auth_type,
-            is_active,
-        } = req.body;
-
-        if (!isValidRequiredString(name)) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'El campo name es obligatorio',
-            });
-        }
-
-        if (!isValidRequiredString(project_slug)) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'El campo project_slug es obligatorio',
-            });
-        }
-
-        if (!isValidRequiredString(base_url)) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'El campo base_url es obligatorio',
-            });
-        }
-
-        if (!isValidRequiredString(auth_token)) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'El campo auth_token es obligatorio',
-            });
-        }
-
-        const createConnection = await apiConnectionModel.createConnection({
-            name,
-            provider,
-            project_slug,
-            form_ref,
-            base_url,
-            auth_type,
-            auth_token,
-            is_active,
-        });
-
-        return res.status(201).json({
-            status: 'ok',
-            message: 'Conexión API creada correctamente',
-            data: createdConnection,
-        });
-    } catch (error) {
-        if (error.code === '23505') {
-            return res.status(409).json({
-                status: 'error',
-                message: 'Ya existe una conexión registrada para el provider, project_slug y form_ref',
-            });
-        }
-
-         if (error.code === '23514') {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Uno de los valores enviados no cumple las restricciones permitidas',
-                detail: error.message,
-            });
-         }
-
-         return res.stauts(500).json({
-            status: 'error',
-            message: 'Error al crear la conexión API',
-            detail: error.message,
-         });
-    }*/
 }
 
 async function updateConnection(req, res) {
@@ -393,10 +313,6 @@ function calculateDurationMs(startedAt, finishedAt) {
 
 async function syncConnection(req, res) {
 
-    /*console.error(
-        'Error en syncConnection:',
-        error.stack || error,
-    );*/
 
     const { id } = req.params;
 
