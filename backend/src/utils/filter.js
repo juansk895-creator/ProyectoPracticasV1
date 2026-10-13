@@ -1,5 +1,6 @@
 const PUBLIC_FIELDS = [
     'id', 'name', 'provider', 'project_slug', 'form_ref', 'base_url', 'auth_type',
+    'has_oauth_credentials', 'oauth_token_expires_at', 'oauth_status', 'oauth_error_code', 'oauth_retry_after',
     'is_active', 'last_test_at', 'last_test_status', 'last_error_message',
     'last_sync_at', 'sync_filter_by', 'sync_cursor', 'sync_per_page',
     'sync_max_pages', 'sync_delay_ms', 'sync_overlap_minutes', 'last_sync_status',

@@ -118,7 +118,9 @@ async function createConnection(req, res) {
 async function updateConnection(req, res) {
     try {
         const { id } = req.params;
-        const validation = validateUpdateConnection(req.body);
+        const current = await apiConnectionModel.findConnectionById(id);
+        if (!current) return res.status(404).json({ status: 'error', code: 'CONNECTION_NOT_FOUND', message: 'Conexión API no encontrada.' });
+        const validation = validateUpdateConnection(req.body, current);
 
         if (!validation.isValid) {
             return sendValidationError(res, validation.errors);
@@ -145,6 +147,7 @@ async function updateConnection(req, res) {
             data: filterConnection(updatedConnection),
         });
     } catch (error) {
+        if (error.code === 'INVALID_CONNECTION_PAYLOAD') return sendValidationError(res, error.errors);
         if (error.code === '23505') {
             return res.status(409).json({
                 status:'error',

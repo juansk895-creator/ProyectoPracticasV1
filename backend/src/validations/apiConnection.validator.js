@@ -1,5 +1,7 @@
+const { normalizeApiBaseUrl, assertAllowedEpicollectBase } = require('../config/epicollect.config');
+const { validPair } = require('../services/oauthCredentials.service');
 const ALLOWED_PROVIDERS = new Set(['epicollect5', 'custom']);
-const ALLOWED_AUTH_TYPES = new Set(['bearer', 'custom', 'none']);
+const ALLOWED_AUTH_TYPES = new Set(['bearer', 'custom', 'none', 'oauth2']);
 const ALLOWED_SYNC_FILTERS = new Set(['created_at', 'uploaded_at']);
 
 function normalizeOptionalString(value) {
@@ -46,53 +48,17 @@ function isLocalOrPrivateHost(hostname) {
 }
 
 function normalizeBaseUrl(value, provider, errors) {
-    const rawUrl = normalizeOptionalString(value);
-
-    if (!rawUrl) {
-        errors.push({
-            fields: 'base_url',
-            message: 'El campo base_url es obligatorio',
-        });
-
-        return null;
-    }
-
-    let parsedUrl;
-
     try {
-        parsedUrl = new URL(rawUrl);
-    } catch {
-        errors.push({
-            field: 'base_url',
-            message: 'El campo base_url debe ser una URL válida',
-        });
-
+        const normalized = normalizeApiBaseUrl(value);
+        if (provider === 'epicollect5') return assertAllowedEpicollectBase(normalized);
+        if (isLocalOrPrivateHost(new URL(normalized).hostname)) {
+            throw new Error('No se permiten URLs locales o privadas para el proveedor custom.');
+        }
+        return normalized;
+    } catch (error) {
+        errors.push({ field: 'base_url', message: error.message });
         return null;
     }
-
-    if (parsedUrl.protocol !== 'https:') {
-        errors.push({
-            field: 'base_url',
-            message: 'El campo base_url debe usar HTTPS',
-        });
-    }
-
-    if (isLocalOrPrivateHost(parsedUrl.hostname)) {
-        errors.push({
-            field: 'base_url',
-            message: 'No se permiten URLs locales o privadas como base_url.',
-        });
-    }
-
-    const normalizedUrl = `${parsedUrl.origin}${parsedUrl.pathname}`.replace(/\/+$/,'',);
-
-    if (provider === 'epicollect5' && normalizedUrl !== 'https://five.epicollect.net/api') {
-        errors.push({
-            field: 'base_url',
-            message: 'Para provider epicollect5, base_url debe ser https://five.epicollect.net/api.',
-        });
-    }
-    return normalizedUrl;
 }
 
 function validateEnum(value, allowedValues, field, errors) {
@@ -168,6 +134,43 @@ function validateTokenInput(payload, errors) {
     }
 }
 
+function validateAuth(payload, data, errors, current, creating) {
+    const type = data.auth_type ?? current?.auth_type ?? 'bearer';
+    const provider = data.provider ?? current?.provider ?? 'epicollect5';
+    const contextChanged = current && ['base_url', 'project_slug', 'provider'].some(
+        (field) => data[field] !== undefined && data[field] !== current[field]);
+    const hasPairInput = payload.oauth_client_id !== undefined || payload.oauth_client_secret !== undefined;
+    if (hasPairInput) {
+        const id = payload.oauth_client_id;
+        const secret = payload.oauth_client_secret;
+        if (!validPair({ client_id: id, client_secret: secret })) {
+            errors.push({ field: 'oauth_credentials', message: 'Proporciona Client ID y Client Secret juntos y completos.' });
+        } else {
+            data.oauth_client_id = id.trim();
+            data.oauth_client_secret = secret;
+        }
+        if ((creating || current || data.auth_type !== undefined) && type !== 'oauth2') {
+            errors.push({ field: 'auth_type', message: 'Selecciona OAuth 2.0 para utilizar Client ID y Client Secret.' });
+        }
+    }
+    if (type === 'oauth2') {
+        if (provider !== 'epicollect5') errors.push({ field: 'provider', message: 'OAuth está disponible para Epicollect5.' });
+        if (payload.auth_token !== undefined && payload.auth_token !== null && payload.auth_token !== '') {
+            errors.push({ field: 'auth_token', message: 'En OAuth el servidor obtiene el token automáticamente.' });
+        }
+        if ((creating || (current && (current.auth_type !== 'oauth2' || contextChanged || !current.has_oauth_credentials))) &&
+            !data.oauth_client_id) {
+            errors.push({ field: 'oauth_credentials', message: 'Proporciona Client ID y Client Secret para esta conexión.' });
+        }
+        delete data.auth_token;
+    } else if (['bearer', 'custom'].includes(type)) {
+        const needsToken = creating || (current && (contextChanged || !['bearer', 'custom'].includes(current.auth_type)));
+        if (needsToken && !data.auth_token) {
+            errors.push({ field: 'auth_token', message: 'Proporciona un token para este servidor y proyecto.' });
+        }
+    }
+}
+
 function validateCreateConnection(payload = {}) {
     const errors = [];
     const data = {};
@@ -207,7 +210,7 @@ function validateCreateConnection(payload = {}) {
 
     const authToken = normalizeOptionalString(payload.auth_token);
 
-    if (authType !== 'none' && !authToken) {
+    if (['bearer', 'custom'].includes(authType) && !authToken) {
         errors.push({
             field: 'auth_token',
             message: 'El campo auth_token es obligatorio para bearer o custom.',
@@ -275,6 +278,8 @@ function validateCreateConnection(payload = {}) {
         data.sync_overlap_minutes = syncOverlapMinutes;
     }
 
+    validateAuth(payload, data, errors, null, true);
+
     return {
         isValid: errors.length === 0,
         errors,
@@ -282,7 +287,7 @@ function validateCreateConnection(payload = {}) {
     };
 }
 
-function validateUpdateConnection(payload = {}) {
+function validateUpdateConnection(payload = {}, current = null) {
     const errors = [];
     const data = {};
     validateTokenInput(payload, errors);
@@ -321,10 +326,10 @@ function validateUpdateConnection(payload = {}) {
         data.form_ref = normalizeOptionalString(payload.form_ref);
     }
 
-    const providerForUrl = data.provider || payload.provider || 'epicollect5';
+    const providerForUrl = data.provider || current?.provider || 'epicollect5';
 
-    if (payload.base_url !== undefined) {
-        const baseUrl = normalizeBaseUrl(payload.base_url, providerForUrl, errors);
+    if (payload.base_url !== undefined || (data.provider !== undefined && current)) {
+        const baseUrl = normalizeBaseUrl(payload.base_url ?? current.base_url, providerForUrl, errors);
 
         if (baseUrl) {
             data.base_url = baseUrl;
@@ -415,6 +420,8 @@ function validateUpdateConnection(payload = {}) {
     if (syncOverlapMinutes !== undefined) {
         data.sync_overlap_minutes = syncOverlapMinutes;
     }
+
+    validateAuth(payload, data, errors, current, false);
 
     if (Object.keys(data).length === 0 && errors.length === 0) {
         errors.push({

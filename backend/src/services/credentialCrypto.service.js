@@ -15,16 +15,19 @@ function getEncryptionKey() {
     return Buffer.from(value, 'hex');
 }
 
-function credentialContext(connectionId) {
+function credentialContext(connectionId, purpose = 'auth_token') {
+    if (!['auth_token', 'oauth_credentials'].includes(purpose)) {
+        throw credentialError('CREDENTIAL_CONTEXT_INVALID', 'Contexto de credencial no válido.');
+    }
     if (typeof connectionId !== 'string' ||
         !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(connectionId)) {
         throw credentialError('CREDENTIAL_CONTEXT_INVALID', 'Identificador de conexión no válido.');
     }
     // Impide trasladar un cifrado válido a otra conexión sin detectar el cambio.
-    return Buffer.from(`api_connections:${connectionId.toLowerCase()}:auth_token:v1`);
+    return Buffer.from(`api_connections:${connectionId.toLowerCase()}:${purpose}:v1`);
 }
 
-function encryptCredential(value, connectionId) {
+function encryptCredential(value, connectionId, purpose = 'auth_token') {
     if (typeof value !== 'string' || value.trim().length === 0 ||
         Buffer.byteLength(value, 'utf8') > MAX_CREDENTIAL_BYTES) {
         throw credentialError('INVALID_CREDENTIAL', 'La credencial no tiene un formato válido.');
@@ -32,7 +35,7 @@ function encryptCredential(value, connectionId) {
     const key = getEncryptionKey();
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
-    cipher.setAAD(credentialContext(connectionId));
+    cipher.setAAD(credentialContext(connectionId, purpose));
     const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
     return ['v1', iv.toString('base64url'), encrypted.toString('base64url'),
         cipher.getAuthTag().toString('base64url')].join('.');
@@ -45,9 +48,9 @@ function decodePart(value) {
     return decoded;
 }
 
-function decryptCredential(value, connectionId) {
+function decryptCredential(value, connectionId, purpose = 'auth_token') {
     const key = getEncryptionKey();
-    const context = credentialContext(connectionId);
+    const context = credentialContext(connectionId, purpose);
     try {
         if (typeof value !== 'string' || value.length > MAX_CREDENTIAL_BYTES * 2) {
             throw new Error('Invalid envelope');

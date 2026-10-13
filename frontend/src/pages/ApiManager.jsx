@@ -20,6 +20,8 @@ const initialFormState = {
     base_url: 'https://five.epicollect.net/api',
     auth_type: 'none',
     auth_token: '',
+    oauth_client_id: '',
+    oauth_client_secret: '',
     sync_filter_by: 'uploaded_at',
     sync_per_page: 500,
     sync_max_pages: 5,
@@ -33,6 +35,17 @@ function formatDate(value) {
     }
 
     return new Date(value).toLocaleString();
+}
+
+function oauthStatusLabel(connection) {
+    const labels = {
+        not_requested: 'Pendiente de la primera conexión', valid: 'Token vigente',
+        expired: 'Se renovará en la próxima consulta', renewal_due: 'Renovación próxima',
+        error: 'Requiere atención: revisa el resultado de la prueba',
+    };
+    if (connection.oauth_status !== 'error' && connection.oauth_token_expires_at &&
+        new Date(connection.oauth_token_expires_at).getTime() <= Date.now()) return labels.expired;
+    return labels[connection.oauth_status] || 'Pendiente';
 }
 
 function getErrorMessage(error) {
@@ -210,9 +223,11 @@ export default function ApiManager() {
             form_ref: formData.form_ref.trim() || null,
             base_url: formData.base_url.trim(),
             auth_token:
-                formData.auth_type === 'none' || !authToken
+                !['bearer', 'custom'].includes(formData.auth_type) || !authToken
                     ? undefined
                     : authToken,
+            oauth_client_id: formData.auth_type === 'oauth2' && formData.oauth_client_id.trim() ? formData.oauth_client_id.trim() : undefined,
+            oauth_client_secret: formData.auth_type === 'oauth2' && formData.oauth_client_secret ? formData.oauth_client_secret : undefined,
         };
 
         if (isEditing) {
@@ -237,6 +252,8 @@ export default function ApiManager() {
                 connection.base_url ?? initialFormState.base_url,
             auth_type: connection.auth_type ?? 'none',
             auth_token: '',
+            oauth_client_id: '',
+            oauth_client_secret: '',
             sync_filter_by:
                 connection.sync_filter_by ?? initialFormState.sync_filter_by,
             sync_per_page:
@@ -383,13 +400,14 @@ export default function ApiManager() {
                                 value={formData.auth_type}
                                 onChange={handleInputChange}
                             >
-                                <option value='none'>none</option>
+                                <option value='none'>Sin autenticación</option>
+                                <option value='oauth2'>OAuth 2.0 — Epicollect5</option>
                                 <option value='bearer'>bearer</option>
                                 <option value='custom'>custom</option>
                             </select>
                         </label>
 
-                        {formData.auth_type !== 'none' && (
+                        {['bearer', 'custom'].includes(formData.auth_type) && (
                             <label className='block'>
                                 <span className='text-sm font-medium'>Token</span>
                                 <input
@@ -405,6 +423,31 @@ export default function ApiManager() {
                                     }
                                 />
                             </label>
+                        )}
+
+                        {formData.auth_type === 'oauth2' && (
+                            <fieldset className='space-y-3 rounded-lg border border-slate-200 p-3'>
+                                <legend className='px-1 text-sm font-medium'>Acceso al proyecto</legend>
+                                <p className='text-sm text-slate-600'>
+                                    El servidor obtiene y renueva el token automáticamente al consultar Epicollect5.
+                                    {editingConnection?.has_oauth_credentials && ' Deja ambos campos vacíos para conservar las credenciales actuales.'}
+                                </p>
+                                <label className='block'>
+                                    <span className='text-sm font-medium'>Client ID</span>
+                                    <input className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                        name='oauth_client_id' value={formData.oauth_client_id}
+                                        onChange={handleInputChange} autoComplete='off' maxLength={256}
+                                        required={!editingConnection?.has_oauth_credentials || Boolean(formData.oauth_client_secret)} />
+                                </label>
+                                <label className='block'>
+                                    <span className='text-sm font-medium'>Client Secret</span>
+                                    <input className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                        name='oauth_client_secret' type='password' value={formData.oauth_client_secret}
+                                        onChange={handleInputChange} autoComplete='new-password' maxLength={8192}
+                                        required={!editingConnection?.has_oauth_credentials || Boolean(formData.oauth_client_id)} />
+                                </label>
+                                <p className='text-xs text-slate-500'>Al cambiar de servidor o proyecto, introduce las credenciales correspondientes.</p>
+                            </fieldset>
                         )}
 
                         <label className='block'>
@@ -582,6 +625,14 @@ export default function ApiManager() {
                                             )}
                                         </div>
                                     </div>
+
+                                    {connection.auth_type === 'oauth2' && (
+                                        <div className='mt-3 rounded-md bg-slate-50 p-3 text-sm' aria-live='polite'>
+                                            <p><strong>Autenticación: </strong>{oauthStatusLabel(connection)}</p>
+                                            <p>Vencimiento del token: {formatDate(connection.oauth_token_expires_at)}</p>
+                                            {connection.oauth_retry_after && <p>Próximo intento permitido: {formatDate(connection.oauth_retry_after)}</p>}
+                                        </div>
+                                    )}
 
                                     <dl className='mt-4 grid gap-3 text-sm md:grid-cols-3'>
                                         <div>

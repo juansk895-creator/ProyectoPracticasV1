@@ -1,3 +1,4 @@
+const { decryptOAuthCredentials } = require('./oauthCredentials.service');
 const { getEncryptionKey, encryptCredential, decryptCredential, credentialError } =
     require('./credentialCrypto.service');
 
@@ -5,7 +6,7 @@ async function storageColumns(client) {
     const result = await client.query(`
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = current_schema() AND table_name = 'api_connections'
-          AND column_name IN ('auth_token', 'token_encrypted')
+          AND column_name IN ('auth_token', 'token_encrypted', 'oauth_credentials_encrypted')
     `);
     return new Set(result.rows.map((row) => row.column_name));
 }
@@ -17,9 +18,13 @@ async function assertCredentialStorage(client) {
         throw credentialError('CREDENTIAL_MIGRATION_REQUIRED',
             'Ejecuta npm --prefix backend run credentials:migrate antes de iniciar el servidor.');
     }
-    const { rows } = await client.query('SELECT id, auth_type, token_encrypted FROM api_connections');
+    const oauthColumn = columns.has('oauth_credentials_encrypted') ? ', oauth_credentials_encrypted' : '';
+    const { rows } = await client.query(`SELECT id, auth_type, token_encrypted${oauthColumn} FROM api_connections`);
     for (const row of rows) {
-        if (row.auth_type !== 'none') decryptCredential(row.token_encrypted, row.id);
+        if (row.auth_type === 'oauth2') {
+            decryptOAuthCredentials(row.oauth_credentials_encrypted, row.id);
+            if (row.token_encrypted) decryptCredential(row.token_encrypted, row.id);
+        } else if (row.auth_type !== 'none') decryptCredential(row.token_encrypted, row.id);
         else if (row.token_encrypted !== null) {
             throw credentialError('CREDENTIAL_STORAGE_INVALID',
                 'Una conexión sin autenticación conserva una credencial. Revisa la migración.');

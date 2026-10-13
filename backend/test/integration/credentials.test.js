@@ -5,6 +5,7 @@ const { readFile } = require('node:fs/promises');
 const path = require('node:path');
 const { Client } = require('pg');
 const { migrateCredentials, assertCredentialStorage } = require('../../src/services/credentialStorage.service');
+const { migrateOAuth } = require('../../src/services/oauthStorage.service');
 
 test('migración y API de conexiones con PostgreSQL', {
     skip: !process.env.TEST_DATABASE_URL,
@@ -47,7 +48,7 @@ test('migración y API de conexiones con PostgreSQL', {
         else process.env.CREDENTIAL_ENCRYPTION_KEY = previousKey;
     });
     const migrationDir = path.resolve(__dirname, '../../../database/migrations');
-    const sql = await readFile(path.join(migrationDir, 'api_conection.sql'), 'utf8');
+    const sql = await readFile(path.resolve(__dirname, '../fixtures/api_connections_pre_oauth.sql'), 'utf8');
     // Reconstruir el esquema anterior para probar la migración desde una BD existente.
     const legacy = sql.replace('token_encrypted TEXT,', 'auth_token TEXT NOT NULL,')
         .replace(/    CONSTRAINT api_connections_credential_check[\s\S]*?    CONSTRAINT api_connections_last_test_status_check/,
@@ -99,6 +100,8 @@ test('migración y API de conexiones con PostgreSQL', {
         assert.deepEqual(before.rows, after.rows);
     });
 
+    await migrateOAuth(client);
+
     global.fetch = async (url, options) => {
         if (!String(url).startsWith('https://five.epicollect.net/api/')) return realFetch(url, options);
         outgoingCalls += 1;
@@ -120,7 +123,7 @@ test('migración y API de conexiones con PostgreSQL', {
         const serialized = JSON.stringify(data);
         assert.equal(serialized.includes('token-de-prueba'), false);
         assert.equal(serialized.includes('"token_encrypted"'), false);
-        assert.equal(serialized.includes('"auth_token"'), false);
+        assert.equal(serialized.includes('"auth_token":'), false);
         return { status: response.status, data };
     }
     await t.test('listar, leer y renombrar conserva el token y publica sólo su indicador', async () => {
