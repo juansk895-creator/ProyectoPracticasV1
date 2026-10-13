@@ -117,20 +117,12 @@ async function requestEpicollectJson(url, connection, options = {}) {
         }
 
         if (!response.ok) {
-            console.error('Epicollect rechazó la solicitud', JSON.stringify({
-                statusCode: response.status,
-                requestUrl: url,
-                responseBody,
-            }, null, 2,),);
-
             const error = new Error(
                 `Epicollect respondió con estado HTTP ${response.status}.`,
             );
 
             error.code = 'EPICOLLECT_HTTP_ERROR';
             error.statusCode = response.status;
-            error.responseBody = responseBody;
-            error.requestUrl = url;
 
             throw error;
         }

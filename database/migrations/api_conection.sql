@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS api_connections (
     base_url TEXT NOT NULL,
 
     auth_type VARCHAR(50) NOT NULL DEFAULT 'bearer',
-    auth_token TEXT NOT NULL,
+    token_encrypted TEXT,
 
     is_active BOOLEAN NOT NULL DEFAULT true,
 
@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS api_connections (
 
     CONSTRAINT api_connections_auth_type_check
         CHECK (auth_type IN ('bearer', 'custom', 'none')),
+
+    CONSTRAINT api_connections_credential_check
+        CHECK (
+            (auth_type = 'none' AND token_encrypted IS NULL) OR
+            (auth_type <> 'none' AND token_encrypted IS NOT NULL AND token_encrypted LIKE 'v1.%')
+        ),
 
     CONSTRAINT api_connections_last_test_status_check
         CHECK (last_test_status IN ('untested', 'success', 'failed')),

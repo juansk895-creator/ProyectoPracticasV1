@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/*.test.js",
+    "test:integration": "node --test test/integration/*.test.js",
+    "credentials:key": "node scripts/createCredentialKey.js",
+    "credentials:migrate": "node scripts/migrateCredentials.js"
   },
   "keywords": [],
   "author": "",

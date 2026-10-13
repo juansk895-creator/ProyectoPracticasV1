@@ -160,9 +160,18 @@ function validateBoolean(payload, field, errors) {
     return payload[field];
 }
 
+function validateTokenInput(payload, errors) {
+    if (payload.auth_token !== undefined && payload.auth_token !== null &&
+        (typeof payload.auth_token !== 'string' ||
+         Buffer.byteLength(payload.auth_token, 'utf8') > 16384)) {
+        errors.push({ field: 'auth_token', message: 'La credencial debe ser texto y no superar 16384 bytes.' });
+    }
+}
+
 function validateCreateConnection(payload = {}) {
     const errors = [];
     const data = {};
+    validateTokenInput(payload, errors);
 
     const name = normalizeOptionalString(payload.name);
 
@@ -205,7 +214,7 @@ function validateCreateConnection(payload = {}) {
         });
     }
 
-    data.auth_token = authToken || 'NO_AUTH_REQUIRED';
+    data.auth_token = authType === 'none' ? null : authToken;
 
     const isActive = validateBoolean(payload, 'is_active', errors);
     data.is_active = isActive === undefined ? true : isActive;
@@ -276,6 +285,7 @@ function validateCreateConnection(payload = {}) {
 function validateUpdateConnection(payload = {}) {
     const errors = [];
     const data = {};
+    validateTokenInput(payload, errors);
 
     if (payload.name !== undefined) {
         const name = normalizeOptionalString(payload.name);

@@ -1,5 +1,7 @@
 //
 const pool = require('../config/db');
+const { randomUUID } = require('node:crypto');
+const { encryptCredential, decryptCredential } = require('../services/credentialCrypto.service');
 
 const publicConnectionFields = `
     id,
@@ -9,6 +11,7 @@ const publicConnectionFields = `
     form_ref,
     base_url,
     auth_type,
+    (token_encrypted IS NOT NULL) AS has_auth_token,
     is_active,
     last_test_at,
     last_test_status,
@@ -62,15 +65,19 @@ async function createConnection(connectionData) {
         sync_overlap_minutes = 5,
     } = connectionData;
 
+    const id = randomUUID();
+    const encrypted = auth_type === 'none' ? null : encryptCredential(auth_token, id);
+
     const result = await pool.query(`
         INSERT INTO api_connections (
+            id,
             name,
             provider,
             project_slug,
             form_ref,
             base_url,
             auth_type,
-            auth_token,
+            token_encrypted,
             is_active,
             sync_filter_by,
             sync_per_page,
@@ -78,7 +85,7 @@ async function createConnection(connectionData) {
             sync_delay_ms,
             sync_overlap_minutes
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        VALUES ($14, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING ${publicConnectionFields}
     `,
     [
@@ -88,13 +95,14 @@ async function createConnection(connectionData) {
         form_ref,
         base_url,
         auth_type,
-        auth_token,
+        encrypted,
         is_active,
         sync_filter_by,
         sync_per_page,
         sync_max_pages,
         sync_delay_ms,
         sync_overlap_minutes,
+        id,
     ],);
     return result.rows[0];
 }
@@ -116,6 +124,9 @@ async function updateConnection(id, connectionData) {
         sync_overlap_minutes,
     } = connectionData;
 
+    const encrypted = auth_type !== 'none' && auth_token !== undefined
+        ? encryptCredential(auth_token, id) : null;
+
     const result = await pool.query(`
         UPDATE api_connections
         SET
@@ -125,7 +136,11 @@ async function updateConnection(id, connectionData) {
             form_ref = COALESCE($5, form_ref),
             base_url = COALESCE($6, base_url),
             auth_type = COALESCE($7, auth_type),
-            auth_token = COALESCE($8, auth_token),
+            token_encrypted = CASE
+                WHEN COALESCE($7, auth_type) = 'none' THEN NULL
+                WHEN $8::text IS NOT NULL THEN $8
+                ELSE token_encrypted
+            END,
             is_active = COALESCE($9, is_active),
             sync_filter_by = COALESCE($10, sync_filter_by),
             sync_per_page = COALESCE($11, sync_per_page),
@@ -143,7 +158,7 @@ async function updateConnection(id, connectionData) {
         form_ref,
         base_url,
         auth_type,
-        auth_token,
+        encrypted,
         is_active,
         sync_filter_by,
         sync_per_page,
@@ -168,38 +183,18 @@ async function setConnectionActiveStatus(id, isActive) {
 
 async function findConnectionWithTokenById(id) {
     const result = await pool.query(`
-        SELECT
-            id,
-            name,
-            provider,
-            project_slug,
-            form_ref,
-            base_url,
-            auth_type,
-            auth_token,
-            is_active,
-            last_test_at,
-            last_test_status,
-            last_error_message,
-            last_sync_at,
-            sync_filter_by,
-            sync_cursor,
-            sync_per_page,
-            sync_max_pages,
-            sync_delay_ms,
-            sync_overlap_minutes,
-            last_sync_status,
-            last_sync_error_message,
-            last_sync_summary,
-            created_at,
-            updated_at
-        FROM api_connections
-        WHERE id = $1    
-        `,
-        [id],
-    );
-
-    return result.rows[0] || null;
+        SELECT ${publicConnectionFields}, token_encrypted
+        FROM api_connections WHERE id = $1
+    `, [id]);
+    const row = result.rows[0];
+    if (!row) return null;
+    const { token_encrypted, ...connection } = row;
+    // Disponible sólo para la llamada saliente; no se serializa por accidente.
+    Object.defineProperty(connection, 'auth_token', {
+        value: row.auth_type === 'none' ? null : decryptCredential(token_encrypted, row.id),
+        enumerable: false,
+    });
+    return connection;
 }
 
 async function updateConnectionTestStatus(id, testStatus, errorMessage = null) {

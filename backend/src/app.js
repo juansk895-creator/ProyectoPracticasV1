@@ -63,4 +63,14 @@ app.use('/api', apiConnectionRoutes);
 app.use('/api', syncLogRoutes);
 app.use('/api/staging', stagingEntryRoutes);
 
+// Incluye fallos al guardar el resultado de una prueba o sincronización.
+app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    return res.status(500).json({
+        status: 'error',
+        code: 'INTERNAL_ERROR',
+        message: 'No fue posible completar la operación.',
+    });
+});
+
 module.exports = app;

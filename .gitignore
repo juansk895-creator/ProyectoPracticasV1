@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 .env
+
+# Configuración y respaldos locales
+.env.*
+!.env.example
+backups/

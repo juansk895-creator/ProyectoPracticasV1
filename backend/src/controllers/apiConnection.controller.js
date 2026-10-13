@@ -1,3 +1,4 @@
+const { safeConnectionError, safeConnectionErrorCode } = require('../utils/connectionError');
 const apiConnectionModel = require('../models/apiConnection.model');
 const epicollectService = require('../services/epicollect.service');
 
@@ -35,7 +36,7 @@ async function getConnections(req, res) {
             status: 'error',
             code: 'CONNECTION_LIST_FAILED',
             message: 'Error al consultar conexiones API',
-            detail: error.message,
+            detail: safeConnectionError(error),
         });
     }
 }
@@ -63,7 +64,7 @@ async function getConnectionById(req, res) {
             status: 'error',
             code: 'CONNECTION_REAR_FAILED',
             message: 'Error al consultar la conexión API',
-            detail: error.message,
+            detail: safeConnectionError(error),
         });
     }
 }
@@ -100,7 +101,7 @@ async function createConnection(req, res) {
                 status: 'error',
                 code: 'DATABASE_CONSTRAINT_FAILED',
                 message: 'Uno de los valores enviados no pasó las restricciones.',
-                detail: error.message,
+                detail: safeConnectionError(error),
             });
         }
 
@@ -108,7 +109,7 @@ async function createConnection(req, res) {
             status: 'error',
             code: 'CONNECTION_CREATE_FAILED',
             message: 'Error al crear la conexión API',
-            detail: error.message,
+            detail: safeConnectionError(error),
         });
     }
 
@@ -157,7 +158,7 @@ async function updateConnection(req, res) {
                 status: 'error',
                 code: 'DATABASE_CONSTRAINT_FAILED',
                 message: 'Uno de los valores enviados no pasó las restricciones.',
-                detail: error.message,
+                detail: safeConnectionError(error),
             });
         }
 
@@ -165,7 +166,7 @@ async function updateConnection(req, res) {
             status: 'error',
             code: 'CONNECTION_UPDATE_FAILED',
             message: 'Error al actualizar la conexión API',
-            detail: error.message,
+            detail: safeConnectionError(error),
         });
     }
 }
@@ -198,7 +199,7 @@ async function deactivateConnection(req, res){
             status: 'error',
             code: 'CONNECTION_DEACTIVATE_FAILED',
             message: 'Error al desactivar la conexión API',
-            detail: error.message,
+            detail: safeConnectionError(error),
         });
     }
 }
@@ -231,7 +232,7 @@ async function activateConnection(req, res) {
             status: 'error',
             code: 'CONNECTION_ACTIVATE_FAILED',
             message: 'Error al activar la conexión API',
-            detail: error.message,
+            detail: safeConnectionError(error),
         });
     }
 }
@@ -280,13 +281,8 @@ async function testConnection(req, res) {
             },
         });
     } catch (error) {
-        const safeErrorMessage = 
-            error.code === 'EPICOLLECT_TIMEOUT'
-                ? 'La solicitud a Epicollect excedió el tiempo límite configurado'
-                : error.statusCode
-                ? `Error de conectividad con Epicollect. HTTP ${error.statusCode}.`
-                : error.message;
-            
+        const safeErrorMessage = safeConnectionError(error);
+
         const updatedConnection = 
             await apiConnectionModel.updateConnectionTestStatus(
                 id,
@@ -296,7 +292,7 @@ async function testConnection(req, res) {
                 
         return res.status(502).json({
             status: 'error',
-            code: error.code || 'EPICOLLECT_TEST_FAILED',
+            code: safeConnectionErrorCode(error, 'EPICOLLECT_TEST_FAILED'),
             message: 'No fue posible validar la conexión API.',
             detail: safeErrorMessage,
             data: {
@@ -386,17 +382,8 @@ async function syncConnection(req, res) {
         });
     } catch (error) {
 
-        console.error(
-            'Error en syncConnection:',
-            error.stack || error,
-        );
+        const safeErrorMessage = safeConnectionError(error);
 
-        const safeErrorMessage = error.code === 'EPICOLLECT_TIMEOUT'
-            ? 'La solicitud a Epicollect excedió el tiempo límite configurado.'
-            : error.statusCode
-            ? `Error al sincronizar desde Epicollect. HTTP ${error.statusCode},`
-            : error.message;
-        
         if (connection) {
             await apiConnectionModel.updateConnectionSyncState(id, {
                 status: 'failed',
@@ -435,7 +422,7 @@ async function syncConnection(req, res) {
         
         return res.status(502).json({
             status: 'error',
-            code: error.code || 'EPICOLLECT_SYNC_FAILED',
+            code: safeConnectionErrorCode(error, 'EPICOLLECT_SYNC_FAILED'),
             message: 'No fue posible ejecutar la sincronización',
             detail: safeErrorMessage,
         });
