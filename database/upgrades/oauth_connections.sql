@@ -1,4 +1,23 @@
 -- Aplicado por oauth:migrate dentro de una transacción.
+-- Los marcadores se escribían como ISO UTC, pero el tipo anterior descartaba
+-- la zona. Es explícita para no depender de la zona del servidor o de Node.
+DO $$
+DECLARE
+    sync_date RECORD;
+BEGIN
+    FOR sync_date IN
+        SELECT table_name, column_name FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND data_type = 'timestamp without time zone'
+          AND ((table_name = 'api_connections' AND column_name = 'sync_cursor')
+            OR (table_name = 'sync_logs' AND column_name IN ('filter_from', 'cursor_before', 'cursor_after')))
+    LOOP
+        EXECUTE format('ALTER TABLE %I.%I ALTER COLUMN %I TYPE TIMESTAMPTZ USING %I AT TIME ZONE ''UTC''',
+            current_schema(), sync_date.table_name, sync_date.column_name, sync_date.column_name);
+    END LOOP;
+END;
+$$;
+
 ALTER TABLE api_connections
 ADD COLUMN IF NOT EXISTS oauth_credentials_encrypted TEXT,
 ADD COLUMN IF NOT EXISTS oauth_token_expires_at TIMESTAMPTZ,

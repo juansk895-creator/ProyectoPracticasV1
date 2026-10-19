@@ -141,6 +141,8 @@ async function updateConnection(id, connectionData) {
         const type = data.auth_type ?? current.auth_type;
         const changedContext = ['provider', 'base_url', 'project_slug'].some(
             (field) => data[field] !== undefined && data[field] !== current[field]);
+        const changedSyncSource = changedContext || ['form_ref', 'sync_filter_by'].some(
+            (field) => data[field] !== undefined && data[field] !== current[field]);
         const changedAuth = type !== current.auth_type || changedContext || data.oauth_client_id !== undefined;
         let token = current.token_encrypted;
         let credentials = current.oauth_credentials_encrypted;
@@ -161,7 +163,12 @@ async function updateConnection(id, connectionData) {
             oauth_token_expires_at = $10, oauth_token_refresh_at = $11,
             oauth_error_code = $12, oauth_retry_after = $13,
             is_active = $14, sync_filter_by = $15, sync_per_page = $16,
-            sync_max_pages = $17, sync_delay_ms = $18, sync_overlap_minutes = $19
+            sync_max_pages = $17, sync_delay_ms = $18, sync_overlap_minutes = $19,
+            sync_cursor = CASE WHEN $20 THEN NULL ELSE sync_cursor END,
+            last_sync_at = CASE WHEN $20 THEN NULL ELSE last_sync_at END,
+            last_sync_status = CASE WHEN $20 THEN 'never' ELSE last_sync_status END,
+            last_sync_error_message = CASE WHEN $20 THEN NULL ELSE last_sync_error_message END,
+            last_sync_summary = CASE WHEN $20 THEN '{}'::jsonb ELSE last_sync_summary END
             WHERE id = $1 RETURNING ${publicConnectionFields}`, [
             id, data.name ?? current.name, data.provider ?? current.provider,
             data.project_slug ?? current.project_slug,
@@ -173,6 +180,7 @@ async function updateConnection(id, connectionData) {
             data.is_active ?? current.is_active, data.sync_filter_by ?? current.sync_filter_by,
             data.sync_per_page ?? current.sync_per_page, data.sync_max_pages ?? current.sync_max_pages,
             data.sync_delay_ms ?? current.sync_delay_ms, data.sync_overlap_minutes ?? current.sync_overlap_minutes,
+            changedSyncSource,
         ]);
         await client.query('COMMIT');
         return result.rows[0];

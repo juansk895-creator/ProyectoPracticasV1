@@ -20,10 +20,10 @@ CREATE TABLE IF NOT EXISTS sync_logs (
     duration_ms INTEGER NOT NULL DEFAULT 0,
 
     filter_by VARCHAR(30),
-    filter_from TIMESTAMP WITHOUT TIME ZONE,
+    filter_from TIMESTAMPTZ,
 
-    cursor_before TIMESTAMP WITHOUT TIME ZONE,
-    cursor_after TIMESTAMP WITHOUT TIME ZONE,
+    cursor_before TIMESTAMPTZ,
+    cursor_after TIMESTAMPTZ,
 
     total_entries_fetched INTEGER NOT NULL DEFAULT 0,
     processed_count INTEGER NOT NULL DEFAULT 0,

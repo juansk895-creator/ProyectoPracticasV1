@@ -52,19 +52,39 @@ test('OAuth, migración y consultas con PostgreSQL y servidor Epicollect simulad
     for (const file of ['entradas_staging.sql', 'sync_controls.sql', 'sync_logs.sql']) {
         await client.query(await readFile(path.join(migrationDir, file), 'utf8'));
     }
+    // Reconstruye el tipo anterior aunque una instalación nueva ya use TIMESTAMPTZ.
+    await client.query('ALTER TABLE api_connections ALTER COLUMN sync_cursor TYPE TIMESTAMP WITHOUT TIME ZONE');
+    await client.query(`ALTER TABLE sync_logs
+        ALTER COLUMN filter_from TYPE TIMESTAMP WITHOUT TIME ZONE,
+        ALTER COLUMN cursor_before TYPE TIMESTAMP WITHOUT TIME ZONE,
+        ALTER COLUMN cursor_after TYPE TIMESTAMP WITHOUT TIME ZONE`);
     const staticId = randomUUID();
     const oldCipher = encryptCredential('token-anterior', staticId);
     await client.query(`INSERT INTO api_connections (id, name, project_slug, base_url, auth_type, token_encrypted)
         VALUES ($1, 'Anterior', 'anterior', 'https://five.epicollect.net/api', 'bearer', $2)`, [staticId, oldCipher]);
+    await client.query("UPDATE api_connections SET sync_cursor = '2026-10-01 10:00:00' WHERE id = $1", [staticId]);
+    await client.query(`INSERT INTO sync_logs (api_connection_id, project_slug, status, started_at, finished_at,
+        filter_from, cursor_before, cursor_after)
+        VALUES ($1, 'anterior', 'success', now(), now(),
+            '2026-10-01 09:55:00', '2026-10-01 10:00:00', '2026-10-01 11:00:00')`, [staticId]);
 
     await t.test('requiere migración; la actualización es repetible y conserva exactamente el cifrado anterior', async () => {
         await assert.rejects(assertOAuthStorage(client), { code: 'OAUTH_MIGRATION_REQUIRED' });
-        await migrateOAuth(client);
-        await migrateOAuth(client);
+        const previousTimezone = (await client.query('SHOW TimeZone')).rows[0].TimeZone;
+        try {
+            await client.query("SET TIME ZONE 'America/Mexico_City'");
+            await migrateOAuth(client);
+            await migrateOAuth(client);
+        } finally { await client.query('SELECT set_config(\'TimeZone\', $1, false)', [previousTimezone]); }
         await assertOAuthStorage(client);
         const row = (await client.query('SELECT * FROM api_connections WHERE id = $1', [staticId])).rows[0];
         assert.equal(row.token_encrypted, oldCipher);
         assert.equal(row.oauth_credentials_encrypted, null);
+        assert.equal(row.sync_cursor.toISOString(), '2026-10-01T10:00:00.000Z');
+        const log = (await client.query('SELECT filter_from, cursor_before, cursor_after FROM sync_logs WHERE api_connection_id = $1', [staticId])).rows[0];
+        assert.equal(log.filter_from.toISOString(), '2026-10-01T09:55:00.000Z');
+        assert.equal(log.cursor_before.toISOString(), '2026-10-01T10:00:00.000Z');
+        assert.equal(log.cursor_after.toISOString(), '2026-10-01T11:00:00.000Z');
         assert.equal((await model.findConnectionWithTokenById(staticId)).auth_token, 'token-anterior');
     });
 
@@ -327,6 +347,91 @@ test('OAuth, migración y consultas con PostgreSQL y servidor Epicollect simulad
         assert.equal(result.stoppedByMaxPages, false);
         getReply = () => json({ meta: { last_page: 0, total: 0 }, data: { entries: [] } });
         assert.equal((await epicollect.fetchAllEpicollectEntries(connection, { delayMs: 0 })).totalEntriesFetched, 0);
+    });
+
+    await t.test('el marcador conserva UTC y el solapamiento al cambiar la zona horaria del proceso', async () => {
+        const previousTimezone = process.env.TZ;
+        try {
+            for (const timezone of ['UTC', 'America/Mexico_City']) {
+                process.env.TZ = timezone;
+                const connection = await create();
+                const synced = await request('PATCH', `/connections/${connection.id}/sync`);
+                assert.equal(synced.status, 200);
+                assert.equal((await row(connection)).sync_cursor.toISOString(), synced.data.data.sync.cursor.nextCursor);
+                assert.equal(synced.data.data.log.cursor_after, synced.data.data.sync.cursor.nextCursor);
+                const repeated = await request('PATCH', `/connections/${connection.id}/sync`);
+                assert.equal(repeated.status, 200);
+                assert.equal(new URL(sent.at(-1).url).searchParams.get('filter_from'), '2026-10-01T09:55:00.000Z');
+                assert.equal(repeated.data.data.log.filter_from, '2026-10-01T09:55:00.000Z');
+            }
+        } finally {
+            if (previousTimezone === undefined) delete process.env.TZ; else process.env.TZ = previousTimezone;
+        }
+    });
+
+    await t.test('cambiar de proyecto o servidor reinicia la sincronización y conserva el historial', async () => {
+        for (const changes of [{ project_slug: 'nuevo-proyecto' }, { base_url: 'https://encuestas.example.org/api' }]) {
+            const connection = await create();
+            assert.equal((await request('PATCH', `/connections/${connection.id}/sync`)).status, 200);
+            assert.ok((await row(connection)).sync_cursor);
+            const logsBefore = await client.query('SELECT id FROM sync_logs WHERE api_connection_id = $1', [connection.id]);
+            assert.equal((await request('PUT', `/connections/${connection.id}`, {
+                ...changes, oauth_client_id: clientId, oauth_client_secret: secret,
+            })).status, 200);
+            const updated = await row(connection);
+            assert.equal(updated.sync_cursor, null, 'el marcador anterior no pertenece a la nueva fuente');
+            assert.equal(updated.last_sync_at, null);
+            assert.equal(updated.last_sync_status, 'never');
+            assert.equal(updated.last_sync_error_message, null);
+            assert.deepEqual(updated.last_sync_summary, {});
+            assert.equal(updated.token_encrypted, null);
+            assert.equal((await request('PATCH', `/connections/${connection.id}/sync`)).status, 200);
+            const nextUrl = new URL(sent.at(-1).url);
+            assert.equal(nextUrl.searchParams.has('filter_from'), false, 'consulta la nueva fuente desde el principio');
+            assert.equal(nextUrl.searchParams.has('filter_by'), false);
+            const logsAfter = await client.query('SELECT id FROM sync_logs WHERE api_connection_id = $1', [connection.id]);
+            for (const log of logsBefore.rows) assert.ok(logsAfter.rows.some((saved) => saved.id === log.id));
+        }
+    });
+
+    await t.test('cambiar de formulario o fecha de filtrado reinicia el marcador y conserva el token OAuth', async () => {
+        for (const changes of [{ form_ref: 'nuevo-formulario' }, { sync_filter_by: 'created_at' }]) {
+            const connection = await create();
+            assert.equal((await request('PATCH', `/connections/${connection.id}/sync`)).status, 200);
+            const before = await row(connection);
+            assert.ok(before.sync_cursor);
+            assert.equal((await request('PUT', `/connections/${connection.id}`, changes)).status, 200);
+            const updated = await row(connection);
+            assert.equal(updated.sync_cursor, null);
+            assert.equal(updated.last_sync_status, 'never');
+            assert.equal(updated.token_encrypted, before.token_encrypted);
+            assert.equal(updated.oauth_credentials_encrypted, before.oauth_credentials_encrypted);
+            assert.equal((await request('PATCH', `/connections/${connection.id}/sync`)).status, 200);
+            const nextUrl = new URL(sent.at(-1).url);
+            assert.equal(nextUrl.searchParams.has('filter_from'), false);
+            assert.equal(nextUrl.searchParams.get('form_ref'), changes.form_ref || null);
+        }
+    });
+
+    await t.test('renombrar, ajustar la paginación o renovar credenciales conserva el avance de la misma fuente', async () => {
+        const connection = await create();
+        assert.equal((await request('PATCH', `/connections/${connection.id}/sync`)).status, 200);
+        const before = await row(connection);
+        assert.ok(before.sync_cursor);
+        assert.equal((await request('PUT', `/connections/${connection.id}`, {
+            name: 'Misma fuente', sync_per_page: 100, sync_max_pages: 10, sync_delay_ms: 1000,
+            sync_overlap_minutes: 10, oauth_client_id: clientId, oauth_client_secret: secret,
+            base_url: connection.base_url, project_slug: connection.project_slug,
+            form_ref: connection.form_ref, sync_filter_by: connection.sync_filter_by,
+        })).status, 200);
+        const updated = await row(connection);
+        for (const field of ['sync_cursor', 'last_sync_at', 'last_sync_status', 'last_sync_error_message', 'last_sync_summary']) {
+            assert.deepEqual(updated[field], before[field]);
+        }
+        assert.equal(updated.token_encrypted, null);
+        assert.equal((await request('PATCH', `/connections/${connection.id}/sync`)).status, 200);
+        assert.equal(new URL(sent.at(-1).url).searchParams.get('filter_by'), 'uploaded_at');
+        assert.ok(new URL(sent.at(-1).url).searchParams.get('filter_from'));
     });
 
     await t.test('un par OAuth alterado bloquea el arranque y no inicia una solicitud saliente', async () => {
