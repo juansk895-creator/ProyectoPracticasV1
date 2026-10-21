@@ -187,10 +187,13 @@ export default function ApiManager() {
         onSuccess: (response) => {
             const processed = response?.data?.sync?.database?.processed ?? 0;
             const fetched = response?.data?.sync?.fetch?.totalEntriesFetched ?? 0;
+            const pendingParents = response?.data?.sync?.database?.pendingParents ?? 0;
 
             setOperationMessage({
-                type: 'success',
-                text: `Sincronización completada. Registros obtenidos: ${fetched}. procesados: ${processed}.`,
+                type: pendingParents ? 'error' : 'success',
+                text: pendingParents
+                    ? `Sincronización parcial. Registros procesados: ${processed}. Registros con padre pendiente: ${pendingParents}.`
+                    : `Sincronización completada. Registros obtenidos: ${fetched}. procesados: ${processed}.`,
             });
             invalidateApiManagerQueries();
         },
@@ -371,13 +374,13 @@ export default function ApiManager() {
                         </label>
 
                         <label className='block'>
-                            <span className='text-sm font-medium'>Form ref opcional</span>
+                            <span className='text-sm font-medium'>Formulario o rama opcional</span>
                             <input
                                 className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
                                 name='form_ref'
                                 value={formData.form_ref}
                                 onChange={handleInputChange}
-                                placeholder='Dejar vacío si no aplica'
+                                placeholder='Vacío: sincronizar el proyecto completo'
                             />
                         </label>
 
@@ -459,7 +462,6 @@ export default function ApiManager() {
                                 onChange={handleInputChange}
                             >
                                 <option value='uploaded_at'>uploaded_at</option>
-                                <option value='updated_at'>updated_at</option>
                                 <option value='created_at'>created_at</option>
                             </select>
                         </label>

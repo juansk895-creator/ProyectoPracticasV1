@@ -6,6 +6,7 @@ const path = require('node:path');
 const { Client } = require('pg');
 const { migrateCredentials, assertCredentialStorage } = require('../../src/services/credentialStorage.service');
 const { migrateOAuth } = require('../../src/services/oauthStorage.service');
+const { migrateHierarchy } = require('../../src/services/hierarchyStorage.service');
 
 test('migración y API de conexiones con PostgreSQL', {
     skip: !process.env.TEST_DATABASE_URL,
@@ -101,9 +102,13 @@ test('migración y API de conexiones con PostgreSQL', {
     });
 
     await migrateOAuth(client);
+    await migrateHierarchy(client);
 
     global.fetch = async (url, options) => {
         if (!String(url).startsWith('https://five.epicollect.net/api/')) return realFetch(url, options);
+        if (String(url).includes('/export/project/')) return Response.json({ data: { project: {
+            slug: String(url).split('/').at(-1), forms: [{ ref: 'test-form', inputs: [] }],
+        } } });
         outgoingCalls += 1;
         assert.equal(options.headers.Authorization, `Bearer ${expectedToken}`);
         return new Response(JSON.stringify(externalStatus === 200

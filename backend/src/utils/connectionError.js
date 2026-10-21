@@ -1,4 +1,10 @@
 const SAFE_MESSAGES = {
+    EPICOLLECT_PROJECT_INVALID: 'La definición del proyecto de Epicollect5 no es válida.',
+    EPICOLLECT_FORM_UNKNOWN: 'El formulario o rama no aparece en la definición del proyecto.',
+    STAGING_ENTRY_INVALID: 'Un registro descargado contiene identificadores o fechas no válidos. El lote no se guardó.',
+    STAGING_SOURCE_CONFLICT: 'La procedencia o estructura de este proyecto no coincide con los datos guardados.',
+    STAGING_MIGRATION_REQUIRED: 'Es necesario aplicar la migración del modelo jerárquico antes de continuar.',
+    SYNC_PAGE_LIMIT: 'Quedan páginas por descargar. Aumenta el máximo de páginas de la conexión y repite la sincronización.',
     EPICOLLECT_TIMEOUT: 'La solicitud a Epicollect excedió el tiempo límite configurado.',
     EPICOLLECT_RESPONSE_INVALID: 'Epicollect devolvió datos incompletos o un formato no válido.',
     CREDENTIAL_DECRYPT_FAILED: 'No se pudo utilizar la credencial. Revisa la clave de cifrado del servidor.',

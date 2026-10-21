@@ -7,6 +7,7 @@ const { Client } = require('pg');
 const { assertOAuthStorage, migrateOAuth } = require('../../src/services/oauthStorage.service');
 const { encryptCredential, decryptCredential } = require('../../src/services/credentialCrypto.service');
 const { decryptOAuthCredentials } = require('../../src/services/oauthCredentials.service');
+const { migrateHierarchy } = require('../../src/services/hierarchyStorage.service');
 
 test('OAuth, migración y consultas con PostgreSQL y servidor Epicollect simulado', {
     skip: !process.env.TEST_DATABASE_URL,
@@ -52,6 +53,7 @@ test('OAuth, migración y consultas con PostgreSQL y servidor Epicollect simulad
     for (const file of ['entradas_staging.sql', 'sync_controls.sql', 'sync_logs.sql']) {
         await client.query(await readFile(path.join(migrationDir, file), 'utf8'));
     }
+    await migrateHierarchy(client);
     // Reconstruye el tipo anterior aunque una instalación nueva ya use TIMESTAMPTZ.
     await client.query('ALTER TABLE api_connections ALTER COLUMN sync_cursor TYPE TIMESTAMP WITHOUT TIME ZONE');
     await client.query(`ALTER TABLE sync_logs
@@ -113,6 +115,11 @@ test('OAuth, migración y consultas con PostgreSQL y servidor Epicollect simulad
             assert.equal(body.client_id, clientId);
             assert.equal(body.client_secret, secret);
             return tokenReply ? tokenReply(url, options) : json({ token_type: 'Bearer', expires_in: 7200, access_token: `access-secreto-${posts}` });
+        }
+        if (String(url).includes('/export/project/')) {
+            const slug = String(url).split('/').at(-1);
+            const current = (await client.query('SELECT form_ref FROM api_connections WHERE project_slug = $1 LIMIT 1', [slug])).rows[0];
+            return json({ data: { project: { slug, forms: [{ ref: current?.form_ref || 'test-form', inputs: [] }] } } });
         }
         gets += 1;
         sent.push({ url: String(url), authorization: options.headers.Authorization });
@@ -409,7 +416,7 @@ test('OAuth, migración y consultas con PostgreSQL y servidor Epicollect simulad
             assert.equal((await request('PATCH', `/connections/${connection.id}/sync`)).status, 200);
             const nextUrl = new URL(sent.at(-1).url);
             assert.equal(nextUrl.searchParams.has('filter_from'), false);
-            assert.equal(nextUrl.searchParams.get('form_ref'), changes.form_ref || null);
+            assert.equal(nextUrl.searchParams.get('form_ref'), changes.form_ref || 'test-form');
         }
     });
 

@@ -340,7 +340,7 @@ async function syncConnection(req, res) {
         const syncResult = await syncService.syncConnectionToStaging(connection);
 
         const nextCursor = syncResult.cursor.nextCursor || null;
-        const syncStatus = syncResult.database.skipped > 0 ? 'partial' : 'success';
+        const syncStatus = syncResult.database.skipped > 0 || syncResult.database.pendingParents > 0 ? 'partial' : 'success';
 
 
         const updatedConnection = await apiConnectionModel.updateConnectionSyncState(id, {
@@ -348,7 +348,8 @@ async function syncConnection(req, res) {
             cursor: nextCursor,
             errorMessage: null,
             summary: syncResult,
-        });
+        }, connection);
+        if (!updatedConnection) throw Object.assign(new Error('La conexión cambió durante la sincronización.'), { code: 'CONNECTION_CHANGED' });
 
         const finishedAt = new Date();
 
@@ -395,7 +396,7 @@ async function syncConnection(req, res) {
                 summary: {
                     error: safeErrorMessage,
                 },
-            });
+            }, connection);
 
             const finishedAt = new Date();
 

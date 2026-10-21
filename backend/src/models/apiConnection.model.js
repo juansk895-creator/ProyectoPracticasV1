@@ -157,6 +157,7 @@ async function updateConnection(id, connectionData) {
             if (data.auth_token !== undefined) token = encryptCredential(data.auth_token, id);
         }
         const keepCache = type === 'oauth2' && !changedAuth;
+        if (changedSyncSource) await client.query('DELETE FROM connection_streams WHERE connection_id = $1', [id]);
         const result = await client.query(`UPDATE api_connections SET
             name = $2, provider = $3, project_slug = $4, form_ref = $5, base_url = $6,
             auth_type = $7, token_encrypted = $8, oauth_credentials_encrypted = $9,
@@ -234,7 +235,7 @@ async function updateConnectionTestStatus(id, testStatus, errorMessage = null) {
     return result.rows[0] || null;
 }
 
-async function updateConnectionSyncState(id, syncState) {
+async function updateConnectionSyncState(id, syncState, expectedConnection = null) {
 
     const {
         status,
@@ -253,6 +254,9 @@ async function updateConnectionSyncState(id, syncState) {
             last_sync_error_message = $4,
             last_sync_summary = $5::jsonb
         WHERE id = $1
+          AND ($6::boolean = false OR (is_active = true AND provider = $7 AND base_url = $8
+            AND project_slug = $9 AND form_ref IS NOT DISTINCT FROM $10
+            AND sync_filter_by = $11 AND auth_type = $12))
         RETURNING ${publicConnectionFields}    
     `, [
             id,
@@ -260,6 +264,9 @@ async function updateConnectionSyncState(id, syncState) {
             cursor,
             errorMessage,
             JSON.stringify(summary),
+            Boolean(expectedConnection), expectedConnection?.provider, expectedConnection?.base_url,
+            expectedConnection?.project_slug, expectedConnection?.form_ref,
+            expectedConnection?.sync_filter_by, expectedConnection?.auth_type,
         ],
     );
 

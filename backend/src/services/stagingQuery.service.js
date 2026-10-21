@@ -1,5 +1,10 @@
 
 const TECHNICAL_FILTER_FIELDS = Object.freeze({
+    entry_uuid: 'entry_uuid::text',
+    record_type: 'record_type',
+    parent_uuid: 'parent_uuid::text',
+    parent_form_ref: 'parent_form_ref',
+    branch_ref: 'branch_ref',
     ec5_uuid: 'ec5_uuid::text',
     project_slug: 'project_slug',
     form_ref: 'form_ref',
@@ -17,6 +22,11 @@ const TECHNICAL_FILTER_FIELDS = Object.freeze({
 });
 
 const TECHNICAL_SORT_FIELDS = Object.freeze({
+    entry_uuid: 'entry_uuid',
+    record_type: 'record_type',
+    parent_uuid: 'parent_uuid',
+    parent_form_ref: 'parent_form_ref',
+    branch_ref: 'branch_ref',
     ec5_uuid: 'ec5_uuid',
     project_slug: 'project_slug',
     form_ref: 'form_ref',
@@ -276,12 +286,17 @@ function getFilterExpression(field, values) {
 
 function buildWhereClause({
     projectSlug,
+    sourceBaseUrl,
     formRef,
     search,
     filters,
 }) {
     const conditions = ['project_slug = $1'];
     const values = [projectSlug];
+    if (sourceBaseUrl) {
+        values.push(sourceBaseUrl);
+        conditions.push(`project_id IN (SELECT id FROM staging_projects WHERE base_url = $${values.length})`);
+    }
 
     if (formRef) {
         values.push(formRef);
@@ -298,7 +313,7 @@ function buildWhereClause({
 
         conditions.push(`
             (
-                ec5_uuid::text ILIKE $${searchPosition}
+                entry_uuid::text ILIKE $${searchPosition}
                 OR COALESCE(created_by, '')
                     ILIKE $${searchPosition}
                 OR COALESCE(sync_status, '')
@@ -401,7 +416,7 @@ function buildOrderByClause({
 
     return `
         ${expression} ${direction} NULLS LAST,
-        ec5_uuid ASC
+        form_ref ASC, entry_uuid ASC
     `;
 }
 

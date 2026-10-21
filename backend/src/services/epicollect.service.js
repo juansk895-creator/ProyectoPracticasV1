@@ -1,5 +1,6 @@
 const { assertAllowedEpicollectBase, normalizeApiBaseUrl } = require('../config/epicollect.config');
 const oauthService = require('./oauth.service');
+const { parseProjectHierarchy, hierarchyError } = require('./projectHierarchy.service');
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
@@ -11,7 +12,8 @@ function buildEntriesUrl(connection, options = {}) {
     url.searchParams.set('per_page', String(options.perPage ?? 500));
     url.searchParams.set('page', String(options.page ?? 1));
     url.searchParams.set('format', 'json');
-    if (connection.form_ref) url.searchParams.set('form_ref', connection.form_ref);
+    if (options.formRef || connection.form_ref) url.searchParams.set('form_ref', options.formRef || connection.form_ref);
+    if (options.branchRef) url.searchParams.set('branch_ref', options.branchRef);
     for (const [key, value] of Object.entries({ filter_by: options.filterBy, filter_from: options.filterFrom,
         filter_to: options.filterTo, sort_by: options.sortBy })) {
         if (value) url.searchParams.set(key, value);
@@ -37,10 +39,10 @@ async function requestOnce(url, connection, token, options) {
         try { body = await response.json(); }
         catch { throw Object.assign(new Error('Epicollect devolvió una respuesta no válida.'), { code: 'EPICOLLECT_RESPONSE_INVALID' }); }
         const lastPage = body?.meta?.last_page;
-        if (!body || !Array.isArray(body.data?.entries) || !body.meta ||
+        if (options.responseType !== 'project' && (!body || !Array.isArray(body.data?.entries) || !body.meta ||
             !['number', 'string'].includes(typeof lastPage) || String(lastPage).trim() === '' ||
             !Number.isSafeInteger(Number(lastPage)) || Number(lastPage) < 0 ||
-            (Number(lastPage) === 0 && body.data.entries.length > 0)) {
+            (Number(lastPage) === 0 && body.data.entries.length > 0))) {
             throw Object.assign(new Error('Epicollect devolvió una respuesta incompleta.'), { code: 'EPICOLLECT_RESPONSE_INVALID' });
         }
         return { statusCode: response.status, body };
@@ -70,9 +72,23 @@ async function requestEpicollectJson(url, connection, options = {}) {
 }
 
 async function testEpicollectConnection(connection) {
-    const testUrl = buildEntriesUrl(connection, { page: 1, perPage: 1 });
+    const graph = await fetchProjectHierarchy(connection);
+    const stream = connection.form_ref ? graph.streams.find((item) => item.form_ref === connection.form_ref) : graph.streams[0];
+    if (!stream) throw hierarchyError('EPICOLLECT_FORM_UNKNOWN', 'El formulario no aparece en el proyecto.');
+    const testUrl = buildEntriesUrl(connection, { page: 1, perPage: 1, formRef: stream.native_form_ref, branchRef: stream.branch_ref });
     const { statusCode, body } = await requestEpicollectJson(testUrl, connection);
     return { ok: true, statusCode, testUrl, meta: body.meta, entriesCount: body.data.entries.length };
+}
+
+async function fetchProjectHierarchy(connection) {
+    if (connection.provider === 'custom') {
+        if (!connection.form_ref) throw hierarchyError('EPICOLLECT_FORM_UNKNOWN', 'Indica un formulario para la conexión personalizada.');
+        return parseProjectHierarchy({ data: { project: { slug: connection.project_slug,
+            forms: [{ ref: connection.form_ref, inputs: [] }] } } }, connection.project_slug);
+    }
+    const base = assertAllowedEpicollectBase(connection.base_url);
+    const { body } = await requestEpicollectJson(`${base}/export/project/${connection.project_slug}`, connection, { responseType: 'project' });
+    return parseProjectHierarchy(body, connection.project_slug);
 }
 
 async function fetchAllEpicollectEntries(connection, options = {}) {
@@ -94,4 +110,4 @@ async function fetchAllEpicollectEntries(connection, options = {}) {
     return { entries: allEntries, pages, totalEntriesFetched: allEntries.length, stoppedByMaxPages: page <= lastPage };
 }
 
-module.exports = { testEpicollectConnection, fetchAllEpicollectEntries };
+module.exports = { testEpicollectConnection, fetchAllEpicollectEntries, fetchProjectHierarchy };

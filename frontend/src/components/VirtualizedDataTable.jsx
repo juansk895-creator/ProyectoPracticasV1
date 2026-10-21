@@ -16,6 +16,7 @@ function getNestedValue(source, path) {
 }
 
 function getCellValue(row, column) {
+    if (column.key === 'record_type') return { form: 'Formulario principal', child: 'Formulario hijo', branch: 'Rama' }[row.record_type] || row.record_type;
     if (column.source === 'payload') {
           return getNestedValue(
             row.payload,
@@ -62,7 +63,7 @@ export default function VirtualizedDataTable({
             scrollContainerRef.current,
         estimateSize: () => ROW_HEIGHT,
         getItemKey: (index) =>
-            rows[index]?.ec5_uuid ?? index,
+            rows[index]?.row_key ?? rows[index]?.ec5_uuid ?? index,
         overscan: OVERSCAN,
         useFlushSync: false,
     });

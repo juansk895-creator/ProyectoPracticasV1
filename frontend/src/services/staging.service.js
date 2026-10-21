@@ -2,6 +2,7 @@ import { apiRequest } from './api.service';
 
 export function getStagingEntries({
     projectSlug,
+    sourceBaseUrl = null,
     formRef = null,
     page = 1,
     pageSize = 25,
@@ -21,6 +22,7 @@ export function getStagingEntries({
     if (formRef) {
         params.set('form_ref', formRef);
     }
+    if (sourceBaseUrl) params.set('source_base_url', sourceBaseUrl);
 
     if (search) {
         params.set('search', search);

@@ -5,6 +5,7 @@ const stagingEntryModel = require('../models/stagingEntry.model.js');
 const { buildDynamicColumns, } = require('../services/schemaAnalyzer.service.js');
 
 const { parseFilters, normalizeSortOptions, } = require('../services/stagingQuery.service.js');
+const { normalizeApiBaseUrl } = require('../config/epicollect.config');
 
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9_-]+$/;
 const DEFAULT_PAGE = 1;
@@ -12,12 +13,13 @@ const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 1_000;
 
 const TECHNICAL_COLUMNS = [
-    {
-        key: 'ec5_uuid',
-        label: 'UUID Epicollect5',
-        type: 'uuid',
-        source: 'system',
-    },
+    { key: 'entry_uuid', label: 'Identificador del registro', type: 'uuid', source: 'system' },
+    { key: 'source_base_url', label: 'Servidor de origen', type: 'text', source: 'system', filterable: false, sortable: false },
+    { key: 'record_type', label: 'Tipo de registro', type: 'text', source: 'system' },
+    { key: 'branch_ref', label: 'Rama', type: 'text', source: 'system' },
+    { key: 'parent_form_ref', label: 'Formulario padre', type: 'text', source: 'system' },
+    { key: 'parent_uuid', label: 'Registro padre', type: 'uuid', source: 'system' },
+    { key: 'parent_found', label: 'Padre disponible', type: 'boolean', source: 'system', filterable: false, sortable: false },
     {
         key: 'project_slug',
         label: 'Proyecto',
@@ -98,6 +100,11 @@ async function getStagingEntries(req, res) {
 
         const rawProjectSlug = req.query.project_slug;
         const rawFormRef = req.query.form_ref;
+        let sourceBaseUrl = null;
+        if (req.query.source_base_url !== undefined) {
+            try { sourceBaseUrl = normalizeApiBaseUrl(req.query.source_base_url); }
+            catch { errors.push('El servidor de origen debe ser una URL HTTPS válida.'); }
+        }
 
         const projectSlug =
             typeof rawProjectSlug === 'string'
@@ -216,6 +223,7 @@ async function getStagingEntries(req, res) {
         const [result, schemaRows] = await Promise.all([
             stagingEntryModel.findStagingEntries({
                 projectSlug,
+                sourceBaseUrl,
                 formRef,
                 page,
                 pageSize,
@@ -226,6 +234,7 @@ async function getStagingEntries(req, res) {
             }),
             stagingEntryModel.findStagingSchema({
                 projectSlug,
+                sourceBaseUrl,
                 formRef,
             }),
         ]);
@@ -247,6 +256,7 @@ async function getStagingEntries(req, res) {
             data: {
                 scope: {
                     project_slug: projectSlug,
+                    source_base_url: sourceBaseUrl,
                     form_ref: formRef,
                 },
                 //columns: TECHNICAL_COLUMNS,
@@ -278,7 +288,7 @@ async function getStagingEntries(req, res) {
             status: 'error',
             code: 'STAGING_LIST_FAILED',
             message: 'Error al consultar registros de staging',
-            detail: error.message,
+            detail: 'Revisa los parámetros y la disponibilidad de la base de datos.',
         });
     }
 }

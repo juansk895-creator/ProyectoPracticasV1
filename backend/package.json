@@ -9,7 +9,8 @@
     "test:integration": "node --test test/integration/*.test.js",
     "credentials:key": "node scripts/createCredentialKey.js",
     "credentials:migrate": "node scripts/migrateCredentials.js",
-    "oauth:migrate": "node scripts/migrateOAuth.js"
+    "oauth:migrate": "node scripts/migrateOAuth.js",
+    "staging:migrate": "node scripts/migrateStaging.js"
   },
   "keywords": [],
   "author": "",

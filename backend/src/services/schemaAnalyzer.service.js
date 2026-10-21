@@ -1,5 +1,9 @@
 const EXCLUDED_PAYLOAD_PATHS = new Set([
     'ec5_uuid',
+    'ec5_parent_uuid',
+    'ec5_branch_uuid',
+    'ec5_branch_owner_uuid',
+    'ec5_branch_ref',
     'entry_uuid',
     'uuid',
     'project_slug',

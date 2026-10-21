@@ -27,6 +27,8 @@ const initialDraftFilter = {
     value: '',
 };
 
+const RECORD_TYPES = { form: 'Formulario principal', child: 'Formulario hijo', branch: 'Rama' };
+
 function getErrorMessage(error) {
     const errors = error?.payload?.errors;
 
@@ -90,6 +92,7 @@ export default function DataExplorer() {
                     selectedConnection?.id,
                 projectSlug:
                     selectedConnection?.project_slug,
+                sourceBaseUrl: selectedConnection?.base_url,
                 formRef:
                     selectedConnection?.form_ref,
                 page,
@@ -104,6 +107,7 @@ export default function DataExplorer() {
             getStagingEntries({
                 projectSlug:
                     selectedConnection.project_slug,
+                sourceBaseUrl: selectedConnection.base_url,
                 formRef:
                     selectedConnection.form_ref,
                 page,
@@ -382,7 +386,7 @@ export default function DataExplorer() {
                                     setPage(1);
                                 }}
                             >
-                                {columns.map(
+                                {columns.filter((column) => column.sortable !== false).map(
                                     (column) => (
                                         <option
                                             key={
@@ -444,6 +448,8 @@ export default function DataExplorer() {
                                         field:
                                             event.target
                                                 .value,
+                                        value: '',
+                                        operator: event.target.value === 'record_type' ? 'eq' : current.operator,
                                     }),
                                 )
                             }
@@ -452,7 +458,7 @@ export default function DataExplorer() {
                                 Selecciona una columna
                             </option>
 
-                            {columns.map((column) => (
+                            {columns.filter((column) => column.filterable !== false).map((column) => (
                                 <option
                                     key={column.key}
                                     value={column.key}
@@ -494,7 +500,17 @@ export default function DataExplorer() {
                             )}
                         </select>
 
-                        <input
+                        {draftFilter.field === 'record_type' ? (
+                            <select
+                                className='rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100'
+                                disabled={OPERATORS_WITHOUT_VALUE.has(draftFilter.operator)}
+                                value={draftFilter.value}
+                                onChange={(event) => setDraftFilter((current) => ({ ...current, value: event.target.value }))}
+                            >
+                                <option value=''>Selecciona un tipo de registro</option>
+                                {Object.entries(RECORD_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                            </select>
+                        ) : <input
                             className='rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100'
                             disabled={OPERATORS_WITHOUT_VALUE.has(
                                 draftFilter.operator,
@@ -511,7 +527,7 @@ export default function DataExplorer() {
                                 )
                             }
                             placeholder='Valor'
-                        />
+                        />}
 
                         <button
                             className='rounded-lg border border-slate-300 px-4 py-2 font-medium'
