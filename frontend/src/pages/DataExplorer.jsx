@@ -66,6 +66,7 @@ export default function DataExplorer() {
 
     const [draftFilter, setDraftFilter] =
         useState(initialDraftFilter);
+    const [showHidden, setShowHidden] = useState(false);
 
     const connectionsQuery = useQuery({
         queryKey: ['api-connections'],
@@ -124,7 +125,14 @@ export default function DataExplorer() {
     const stagingData =
         stagingQuery.data?.data;
 
-    const columns = stagingData?.columns || [];
+    const allColumns = stagingData?.columns || [];
+    const columns = allColumns.filter((column) => showHidden || !column.hidden);
+    const hiddenCount = allColumns.filter((column) => column.hidden).length;
+    const draftColumn = allColumns.find((column) => column.key === draftFilter.field);
+    const choiceFilter = draftColumn?.type === 'choice' || draftColumn?.type === 'choices';
+    const valueOptions = draftFilter.field === 'record_type'
+        ? Object.entries(RECORD_TYPES).map(([value, label]) => ({ value, label }))
+        : choiceFilter ? draftColumn.options : null;
     const rows = stagingData?.rows || [];
 
     const pagination =
@@ -155,6 +163,7 @@ export default function DataExplorer() {
         setDraftFilter(initialDraftFilter);
         setSortBy('received_at');
         setSortOrder('desc');
+        setShowHidden(false);
     }
 
     function handleConnectionChange(event) {
@@ -253,9 +262,8 @@ export default function DataExplorer() {
                     </h1>
 
                     <p className='mt-2 max-w-3xl text-sm text-slate-600'>
-                        Consulta los registros de staging mediante
-                        columnas generadas automáticamente desde el
-                        esquema JSONB.
+                        Consulta los registros con las preguntas y
+                        opciones definidas en el proyecto de origen.
                     </p>
                 </header>
 
@@ -427,6 +435,12 @@ export default function DataExplorer() {
                             </select>
                         </label>
                     </div>
+                    {hiddenCount > 0 && (
+                        <label className='mt-4 flex items-center gap-2 text-sm text-slate-600'>
+                            <input type='checkbox' checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} />
+                            Mostrar preguntas ocultas ({hiddenCount})
+                        </label>
+                    )}
                 </section>
 
                 <section className='rounded-xl bg-white p-5 shadow-sm'>
@@ -449,7 +463,7 @@ export default function DataExplorer() {
                                             event.target
                                                 .value,
                                         value: '',
-                                        operator: event.target.value === 'record_type' ? 'eq' : current.operator,
+                                        operator: event.target.value === 'record_type' || ['choice', 'choices'].includes(allColumns.find((column) => column.key === event.target.value)?.type) ? 'eq' : 'contains',
                                     }),
                                 )
                             }
@@ -484,7 +498,7 @@ export default function DataExplorer() {
                                 )
                             }
                         >
-                            {OPERATORS.map(
+                            {OPERATORS.filter((operator) => !(choiceFilter || draftFilter.field === 'record_type') || ['eq', 'neq', 'is_null', 'not_null'].includes(operator.value)).map(
                                 (operator) => (
                                     <option
                                         key={
@@ -500,15 +514,15 @@ export default function DataExplorer() {
                             )}
                         </select>
 
-                        {draftFilter.field === 'record_type' ? (
+                        {valueOptions ? (
                             <select
                                 className='rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100'
                                 disabled={OPERATORS_WITHOUT_VALUE.has(draftFilter.operator)}
                                 value={draftFilter.value}
                                 onChange={(event) => setDraftFilter((current) => ({ ...current, value: event.target.value }))}
                             >
-                                <option value=''>Selecciona un tipo de registro</option>
-                                {Object.entries(RECORD_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                <option value=''>Selecciona una opción</option>
+                                {valueOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
                             </select>
                         ) : <input
                             className='rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100'
@@ -552,13 +566,12 @@ export default function DataExplorer() {
                                         type='button'
                                     >
                                         {
-                                            filter.field
+                                            allColumns.find((column) => column.key === filter.field)?.label || filter.field
                                         }{' '}
                                         {
-                                            filter.operator
+                                            OPERATORS.find((operator) => operator.value === filter.operator)?.label || filter.operator
                                         }{' '}
-                                        {filter.value ??
-                                            ''}
+                                        {allColumns.find((column) => column.key === filter.field)?.options?.find((option) => option.value === filter.value)?.label || RECORD_TYPES[filter.value] || filter.value || ''}
                                         {' ×'}
                                     </button>
                                 ),
@@ -601,17 +614,15 @@ export default function DataExplorer() {
                                 stagingQuery.error,
                             )}
                         </div>
-                    ) : rows.length === 0 ? (
-                        <p className='text-sm text-slate-500'>
-                            No hay registros que coincidan con la consulta.
-                        </p>
                     ) : (
-
+                        <>
+                        {rows.length === 0 && <p className='mb-3 text-sm text-slate-500'>No hay registros que coincidan con la consulta.</p>}
                         <VirtualizedDataTable
                             columns={columns}
                             resetKey={tableResetKey}
                             rows={rows}
                         />
+                        </>
                     )}
 
                     <footer className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4'>

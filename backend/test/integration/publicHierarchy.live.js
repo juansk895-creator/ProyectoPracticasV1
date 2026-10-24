@@ -56,6 +56,15 @@ test('proyecto público real: formulario y ramas vinculadas en un esquema tempor
     assert.ok(listed.rows.some((row) => row.record_type === 'form'));
     assert.ok(listed.rows.some((row) => row.record_type === 'branch'));
     assert.ok(listed.rows.every((row) => row.parent_found));
+    const columns = await require('../../src/models/stagingEntry.model').findStagingSchema({
+        projectSlug: connection.project_slug, sourceBaseUrl: connection.base_url });
+    const hiddenAge = columns.find((column) => column.hidden && column.type === 'number');
+    const sex = columns.find((column) => column.type === 'choice');
+    assert.ok(hiddenAge, 'La definición declara la edad oculta en el mapeo personalizado.');
+    assert.ok(listed.rows.some((row) => row.field_values[hiddenAge.input_ref] !== null && row.field_values[hiddenAge.input_ref] !== undefined));
+    assert.ok(sex?.options.length >= 2);
+    assert.ok(listed.rows.filter((row) => row.record_type === 'form').every((row) =>
+        sex.options.some((option) => option.value === row.field_values[sex.input_ref])));
     for (const stream of result.fetch.streams) {
         const page = result.fetch.pages.find((item) => item.form_ref === stream.form_ref);
         assert.equal(listed.rows.filter((row) => row.form_ref === stream.form_ref).length, Number(page.meta.total));
@@ -63,5 +72,6 @@ test('proyecto público real: formulario y ramas vinculadas en un esquema tempor
     console.log(JSON.stringify({ total: listed.total,
         forms: listed.rows.filter((row) => row.record_type === 'form').length,
         branches: listed.rows.filter((row) => row.record_type === 'branch').length,
-        pendingParents: result.database.pendingParents, streams: result.fetch.streams.length }, null, 2));
+        pendingParents: result.database.pendingParents, streams: result.fetch.streams.length,
+        declaredQuestions: columns.length, hiddenQuestions: columns.filter((column) => column.hidden).length }, null, 2));
 });

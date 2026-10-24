@@ -1,4 +1,5 @@
 const SAFE_MESSAGES = {
+    EPICOLLECT_SCHEMA_INVALID: 'La definición de preguntas o su mapeo de exportación no es válido. Revisa la estructura del proyecto.',
     EPICOLLECT_PROJECT_INVALID: 'La definición del proyecto de Epicollect5 no es válida.',
     EPICOLLECT_FORM_UNKNOWN: 'El formulario o rama no aparece en la definición del proyecto.',
     STAGING_ENTRY_INVALID: 'Un registro descargado contiene identificadores o fechas no válidos. El lote no se guardó.',

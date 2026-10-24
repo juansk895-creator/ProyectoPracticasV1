@@ -14,6 +14,7 @@ function buildEntriesUrl(connection, options = {}) {
     url.searchParams.set('format', 'json');
     if (options.formRef || connection.form_ref) url.searchParams.set('form_ref', options.formRef || connection.form_ref);
     if (options.branchRef) url.searchParams.set('branch_ref', options.branchRef);
+    if (options.mapIndex !== null && options.mapIndex !== undefined) url.searchParams.set('map_index', String(options.mapIndex));
     for (const [key, value] of Object.entries({ filter_by: options.filterBy, filter_from: options.filterFrom,
         filter_to: options.filterTo, sort_by: options.sortBy })) {
         if (value) url.searchParams.set(key, value);
@@ -83,7 +84,7 @@ async function testEpicollectConnection(connection) {
 async function fetchProjectHierarchy(connection) {
     if (connection.provider === 'custom') {
         if (!connection.form_ref) throw hierarchyError('EPICOLLECT_FORM_UNKNOWN', 'Indica un formulario para la conexión personalizada.');
-        return parseProjectHierarchy({ data: { project: { slug: connection.project_slug,
+        return parseProjectHierarchy({ meta: { sedecollect_source: 'custom' }, data: { project: { slug: connection.project_slug,
             forms: [{ ref: connection.form_ref, inputs: [] }] } } }, connection.project_slug);
     }
     const base = assertAllowedEpicollectBase(connection.base_url);

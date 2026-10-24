@@ -9,6 +9,9 @@ async function main() {
     await assertOAuthStorage(pool);
     const columns = await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()
         AND table_name = 'entradas_staging' AND column_name = 'project_id'`);
+    const fieldStorage = await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()
+        AND table_name = 'entradas_staging' AND column_name = 'field_values'`);
+    const toIndex = fieldStorage.rowCount ? 0 : (await pool.query('SELECT count(*)::integer AS total FROM entradas_staging')).rows[0].total;
     const where = columns.rowCount ? 'WHERE project_id IS NULL OR entry_uuid IS NULL OR record_type IS NULL OR form_ref IS NULL' : '';
     const pending = await pool.query(`SELECT project_slug, count(*)::integer AS records FROM entradas_staging ${where} GROUP BY project_slug ORDER BY project_slug`);
     const projects = [];
@@ -23,7 +26,9 @@ async function main() {
         projects.push({ base_url: connection.base_url, graph });
     }
     console.log(JSON.stringify({ projects: pending.rows, records: pending.rows.reduce((sum, row) => sum + row.records, 0),
-        streams: projects.reduce((sum, project) => sum + project.graph.streams.length, 0) }, null, 2));
+        streams: projects.reduce((sum, project) => sum + project.graph.streams.length, 0),
+        stable_fields: { structure_required: !fieldStorage.rowCount, records_to_index: toIndex,
+            initialize_stream_cursors: !fieldStorage.rowCount } }, null, 2));
     if (!process.argv.includes('--apply')) {
         console.log('Vista previa: no se modificó staging. Para aplicar: npm --prefix backend run staging:migrate -- --apply');
         return;
@@ -37,7 +42,7 @@ async function main() {
 
 main().catch((error) => {
     const safe = new Set(['STAGING_PROJECT_REQUIRED', 'STAGING_ENTRY_INVALID', 'STAGING_SOURCE_CONFLICT',
-        'STAGING_MIGRATION_REQUIRED', 'OAUTH_MIGRATION_REQUIRED', 'CREDENTIAL_KEY_INVALID', 'CREDENTIAL_DECRYPT_FAILED']);
+        'STAGING_MIGRATION_REQUIRED', 'EPICOLLECT_SCHEMA_INVALID', 'OAUTH_MIGRATION_REQUIRED', 'CREDENTIAL_KEY_INVALID', 'CREDENTIAL_DECRYPT_FAILED']);
     console.error(safe.has(error.code) ? `${error.code}: ${error.message}`
         : 'No se completó la preparación de staging. Revisa la conexión y el acceso a las definiciones de los proyectos.');
     process.exitCode = 1;

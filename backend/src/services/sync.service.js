@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const epicollect = require('./epicollect.service');
 const staging = require('../models/stagingEntry.model');
 const { hierarchyError } = require('./projectHierarchy.service');
+const { compileProjectFields } = require('./projectSchema.service');
 
 function maxCursor(entries, field, previous) {
     let latest = previous ? new Date(previous) : null;
@@ -17,6 +18,7 @@ function maxCursor(entries, field, previous) {
 
 async function syncConnectionToStaging(connection, options = {}) {
     const graph = await epicollect.fetchProjectHierarchy(connection);
+    const { mapIndex } = compileProjectFields(graph.definition);
     const streams = connection.form_ref ? graph.streams.filter((item) => item.form_ref === connection.form_ref) : graph.streams;
     if (!streams.length) throw hierarchyError('EPICOLLECT_FORM_UNKNOWN', 'El formulario no aparece en el proyecto.');
     const saved = await pool.query('SELECT form_ref, sync_cursor FROM connection_streams WHERE connection_id = $1', [connection.id]);
@@ -31,7 +33,7 @@ async function syncConnectionToStaging(connection, options = {}) {
         const filterFrom = options.filterFrom ?? (previousCursor ? new Date(new Date(previousCursor).getTime() - overlapMs).toISOString() : null);
         if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
         const fetched = await epicollect.fetchAllEpicollectEntries(connection, {
-            perPage, maxPages, delayMs, formRef: stream.native_form_ref, branchRef: stream.branch_ref,
+            perPage, maxPages, delayMs, formRef: stream.native_form_ref, branchRef: stream.branch_ref, mapIndex,
             filterBy: filterFrom ? filterBy : null, filterFrom, sortBy: filterBy, sortOrder: 'ASC',
         });
         if (fetched.stoppedByMaxPages) throw hierarchyError('SYNC_PAGE_LIMIT', 'Quedan páginas por descargar. Aumenta el máximo de páginas de la conexión.');

@@ -1,54 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { getCellValue, formatCellValue } from '../utils/stagingCells';
 
 const ROW_HEIGHT = 49;
 const OVERSCAN = 12;
-
-function getNestedValue(source, path) {
-    if (!source || !path) {
-        return null;
-    }
-
-    return path.split('.').reduce(
-        (current, segment) => current?.[segment],
-        source,
-    );
-}
-
-function getCellValue(row, column) {
-    if (column.key === 'record_type') return { form: 'Formulario principal', child: 'Formulario hijo', branch: 'Rama' }[row.record_type] || row.record_type;
-    if (column.source === 'payload') {
-          return getNestedValue(
-            row.payload,
-            column.path,
-          );
-    }
-    return row[column.key];
-}
-
-function formatCellValue(value, column) {
-    if (value === null || value === undefined) {
-        return '-';
-    }
-
-    if (column.type === 'datetime') {
-        const date = new Date(value);
-
-        if (!Number.isNaN(date.getTime())) {
-            return date.toLocaleString();
-        }
-    }
-
-    if (typeof value === 'boolean') {
-        return value ? 'Sí' : 'No';
-    }
-
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
-    }
-
-    return String(value);
-}
 
 export default function VirtualizedDataTable({
     columns,

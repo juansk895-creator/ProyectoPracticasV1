@@ -1,12 +1,13 @@
 const path = require('node:path');
 const { readFile } = require('node:fs/promises');
 const { hierarchyError, normalizeHierarchyEntry } = require('./projectHierarchy.service');
+const { compileProjectFields, extractFieldValues } = require('./projectSchema.service');
 
 async function assertHierarchyStorage(client) {
     const { rows } = await client.query(`SELECT column_name, is_nullable FROM information_schema.columns
         WHERE table_schema = current_schema() AND table_name = 'entradas_staging'
-          AND column_name IN ('project_id', 'entry_uuid', 'record_type', 'parent_form_ref', 'parent_uuid', 'branch_ref', 'form_ref')`);
-    if (rows.length !== 7 || rows.some((row) => ['project_id', 'entry_uuid', 'record_type', 'form_ref'].includes(row.column_name) && row.is_nullable !== 'NO')) {
+          AND column_name IN ('project_id', 'entry_uuid', 'record_type', 'parent_form_ref', 'parent_uuid', 'branch_ref', 'form_ref', 'field_values')`);
+    if (rows.length !== 8 || rows.some((row) => ['project_id', 'entry_uuid', 'record_type', 'form_ref', 'field_values'].includes(row.column_name) && row.is_nullable !== 'NO')) {
         throw hierarchyError('STAGING_MIGRATION_REQUIRED', 'Ejecuta npm --prefix backend run staging:migrate -- --apply antes de iniciar el servidor.');
     }
 }
@@ -34,6 +35,8 @@ async function migrateHierarchy(client, projects = []) {
     await client.query('BEGIN');
     try {
         await client.query('LOCK TABLE api_connections, entradas_staging IN ACCESS EXCLUSIVE MODE');
+        const hadFields = (await client.query(`SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'entradas_staging' AND column_name = 'field_values'`)).rowCount > 0;
         await client.query(await readFile(path.resolve(__dirname, '../../../database/upgrades/staging_hierarchy.sql'), 'utf8'));
         const pending = (await client.query(`SELECT * FROM entradas_staging WHERE project_id IS NULL OR entry_uuid IS NULL
             OR record_type IS NULL OR form_ref IS NULL`)).rows;
@@ -63,6 +66,21 @@ async function migrateHierarchy(client, projects = []) {
                 normalized.updated_at_epicollect?.toISOString() || null,
                 normalized.uploaded_at_epicollect?.toISOString() || null, projectIds.get(row.project_slug)]);
             migrated += 1;
+        }
+        if (!hadFields) {
+            const savedProjects = (await client.query('SELECT id, definition FROM staging_projects')).rows;
+            for (const project of savedProjects) {
+                const { fields } = compileProjectFields(project.definition, 'default');
+                const records = (await client.query('SELECT form_ref, entry_uuid, payload FROM entradas_staging WHERE project_id = $1', [project.id])).rows;
+                for (const record of records) {
+                    await client.query(`UPDATE entradas_staging SET field_values = $4::jsonb
+                        WHERE project_id = $1 AND form_ref = $2 AND entry_uuid = $3`,
+                    [project.id, record.form_ref, record.entry_uuid, JSON.stringify(extractFieldValues(record.payload, fields, record.form_ref))]);
+                }
+            }
+            // La primera descarga con EC5_AUTO recupera también preguntas ocultas por el mapeo anterior.
+            await client.query('UPDATE connection_streams SET sync_cursor = NULL');
+            await client.query('UPDATE api_connections SET sync_cursor = NULL');
         }
         await client.query(`ALTER TABLE entradas_staging DROP CONSTRAINT IF EXISTS entradas_staging_pkey;
             ALTER TABLE entradas_staging

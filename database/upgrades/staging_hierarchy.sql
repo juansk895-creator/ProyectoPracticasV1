@@ -34,4 +34,5 @@ ALTER TABLE entradas_staging
     ADD COLUMN IF NOT EXISTS record_type VARCHAR(10),
     ADD COLUMN IF NOT EXISTS parent_form_ref VARCHAR(150),
     ADD COLUMN IF NOT EXISTS parent_uuid UUID,
-    ADD COLUMN IF NOT EXISTS branch_ref VARCHAR(150);
+    ADD COLUMN IF NOT EXISTS branch_ref VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS field_values JSONB NOT NULL DEFAULT '{}'::jsonb;

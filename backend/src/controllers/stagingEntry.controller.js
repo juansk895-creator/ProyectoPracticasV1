@@ -2,8 +2,6 @@
 
 const stagingEntryModel = require('../models/stagingEntry.model.js');
 
-const { buildDynamicColumns, } = require('../services/schemaAnalyzer.service.js');
-
 const { parseFilters, normalizeSortOptions, } = require('../services/stagingQuery.service.js');
 const { normalizeApiBaseUrl } = require('../config/epicollect.config');
 
@@ -220,8 +218,14 @@ async function getStagingEntries(req, res) {
         }
 
 
-        const [result, schemaRows] = await Promise.all([
-            stagingEntryModel.findStagingEntries({
+        const dynamicColumns = await stagingEntryModel.findStagingSchema({ projectSlug, sourceBaseUrl, formRef });
+        const knownFields = new Set(dynamicColumns.map((column) => column.key));
+        const requestedFields = [...filterResult.filters.map((filter) => filter.field), sortResult.sortBy];
+        if (requestedFields.some((field) => field.startsWith('field.') && !knownFields.has(field))) {
+            return res.status(400).json({ status: 'error', code: 'STAGING_QUERY_INVALID',
+                message: 'La pregunta seleccionada no pertenece al proyecto o formulario consultado.' });
+        }
+        const result = await stagingEntryModel.findStagingEntries({
                 projectSlug,
                 sourceBaseUrl,
                 formRef,
@@ -231,15 +235,8 @@ async function getStagingEntries(req, res) {
                 filters: filterResult.filters,
                 sortBy: sortResult.sortBy,
                 sortOrder: sortResult.sortOrder,
-            }),
-            stagingEntryModel.findStagingSchema({
-                projectSlug,
-                sourceBaseUrl,
-                formRef,
-            }),
-        ]);
-
-        const dynamicColumns = buildDynamicColumns(schemaRows);
+                fieldColumns: dynamicColumns,
+            });
 
         const columns = [
             ...TECHNICAL_COLUMNS,
@@ -262,6 +259,7 @@ async function getStagingEntries(req, res) {
                 //columns: TECHNICAL_COLUMNS,
                 columns,
                 schema: {
+                    source: dynamicColumns.some((column) => column.source === 'payload') ? 'observed_payload' : 'project_definition',
                     technical_columns: TECHNICAL_COLUMNS.length,
                     dynamic_columns: dynamicColumns.length,
                     total_columns: columns.length,

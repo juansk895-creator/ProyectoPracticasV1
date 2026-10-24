@@ -1,0 +1,365 @@
+{
+  "meta": {
+    "project_mapping": [
+      {
+        "name": "EC5_AUTO",
+        "forms": {
+          "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273": {
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6c18fd8c": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "1_Name",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6c98fd8d": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "2_Age",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6d18fd8e": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "3_Date_of_birth",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f7148fd8f": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "4_Sex",
+              "possible_answers": {
+                "5901f7148fd90": {
+                  "map_to": "Male"
+                },
+                "5901f71a8fd91": {
+                  "map_to": "Female"
+                }
+              }
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_590200228fd92": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "5_Photo",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f": {
+              "hide": false,
+              "group": [],
+              "branch": {
+                "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f_591ee7e284010": {
+                  "hide": false,
+                  "group": [],
+                  "branch": [],
+                  "map_to": "7_Name",
+                  "possible_answers": []
+                },
+                "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f_591ee7e584011": {
+                  "hide": false,
+                  "group": [],
+                  "branch": [],
+                  "map_to": "8_Age",
+                  "possible_answers": []
+                }
+              },
+              "map_to": "6_Family_Members",
+              "possible_answers": []
+            }
+          }
+        },
+        "map_index": 0,
+        "is_default": false
+      },
+      {
+        "name": "custom",
+        "forms": {
+          "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273": {
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6c18fd8c": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "name",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6c98fd8d": {
+              "hide": true,
+              "group": [],
+              "branch": [],
+              "map_to": "age",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6d18fd8e": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "born",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f7148fd8f": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "sex",
+              "possible_answers": {
+                "5901f7148fd90": {
+                  "map_to": "M"
+                },
+                "5901f71a8fd91": {
+                  "map_to": "F"
+                }
+              }
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_590200228fd92": {
+              "hide": false,
+              "group": [],
+              "branch": [],
+              "map_to": "photo",
+              "possible_answers": []
+            },
+            "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f": {
+              "hide": false,
+              "group": [],
+              "branch": {
+                "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f_591ee7e284010": {
+                  "hide": false,
+                  "group": [],
+                  "branch": [],
+                  "map_to": "7_Name",
+                  "possible_answers": []
+                },
+                "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f_591ee7e584011": {
+                  "hide": false,
+                  "group": [],
+                  "branch": [],
+                  "map_to": "8_Age",
+                  "possible_answers": []
+                }
+              },
+              "map_to": "6_Family_Members",
+              "possible_answers": []
+            }
+          }
+        },
+        "map_index": 1,
+        "is_default": true
+      }
+    ],
+    "project_stats": {
+      "total_entries": 3,
+      "total_files": 0,
+      "total_bytes": 281508,
+      "form_counts": {
+        "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273": {
+          "count": 3,
+          "last_entry_created": "2017-04-27 14:42:04",
+          "first_entry_created": "2017-04-27 14:29:22"
+        }
+      },
+      "branch_counts": {
+        "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f": {
+          "count": 4,
+          "last_entry_created": "2017-05-19 12:51:41",
+          "first_entry_created": "2017-05-19 12:48:49"
+        }
+      },
+      "structure_last_updated": "2017-05-19 12:48:41"
+    }
+  },
+  "data": {
+    "id": "d500a44b973e4de4a80fda57ca3dfe4d",
+    "type": "project",
+    "project": {
+      "ref": "d500a44b973e4de4a80fda57ca3dfe4d",
+      "name": "EC5 API Test",
+      "slug": "ec5-api-test",
+      "forms": [
+        {
+          "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273",
+          "name": "Person",
+          "slug": "person",
+          "type": "hierarchy",
+          "inputs": [
+            {
+              "max": null,
+              "min": null,
+              "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6c18fd8c",
+              "type": "text",
+              "group": [],
+              "jumps": [],
+              "regex": null,
+              "branch": [],
+              "verify": false,
+              "default": null,
+              "is_title": true,
+              "question": "Name",
+              "uniqueness": "none",
+              "is_required": false,
+              "datetime_format": null,
+              "possible_answers": [],
+              "set_to_current_datetime": false
+            },
+            {
+              "max": "",
+              "min": "",
+              "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6c98fd8d",
+              "type": "integer",
+              "group": [],
+              "jumps": [],
+              "regex": "",
+              "branch": [],
+              "verify": false,
+              "default": "",
+              "is_title": false,
+              "question": "Age",
+              "uniqueness": "none",
+              "is_required": false,
+              "datetime_format": null,
+              "possible_answers": [],
+              "set_to_current_datetime": false
+            },
+            {
+              "max": null,
+              "min": null,
+              "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f6d18fd8e",
+              "type": "date",
+              "group": [],
+              "jumps": [],
+              "regex": null,
+              "branch": [],
+              "verify": false,
+              "default": null,
+              "is_title": false,
+              "question": "Date of birth",
+              "uniqueness": "none",
+              "is_required": false,
+              "datetime_format": "dd/MM/YYYY",
+              "possible_answers": [],
+              "set_to_current_datetime": false
+            },
+            {
+              "max": null,
+              "min": null,
+              "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_5901f7148fd8f",
+              "type": "radio",
+              "group": [],
+              "jumps": [],
+              "regex": null,
+              "branch": [],
+              "verify": false,
+              "default": "",
+              "is_title": false,
+              "question": "Sex",
+              "uniqueness": "none",
+              "is_required": false,
+              "datetime_format": null,
+              "possible_answers": [
+                {
+                  "answer": "Male",
+                  "answer_ref": "5901f7148fd90"
+                },
+                {
+                  "answer": "Female",
+                  "answer_ref": "5901f71a8fd91"
+                }
+              ],
+              "set_to_current_datetime": false
+            },
+            {
+              "max": null,
+              "min": null,
+              "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_590200228fd92",
+              "type": "photo",
+              "group": [],
+              "jumps": [],
+              "regex": null,
+              "branch": [],
+              "verify": false,
+              "default": null,
+              "is_title": false,
+              "question": "Photo",
+              "uniqueness": "none",
+              "is_required": false,
+              "datetime_format": null,
+              "possible_answers": [],
+              "set_to_current_datetime": false
+            },
+            {
+              "max": null,
+              "min": null,
+              "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f",
+              "type": "branch",
+              "group": [],
+              "jumps": [],
+              "regex": null,
+              "branch": [
+                {
+                  "max": null,
+                  "min": null,
+                  "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f_591ee7e284010",
+                  "type": "text",
+                  "group": [],
+                  "jumps": [],
+                  "regex": null,
+                  "branch": [],
+                  "verify": false,
+                  "default": null,
+                  "is_title": true,
+                  "question": "Name",
+                  "uniqueness": "none",
+                  "is_required": true,
+                  "datetime_format": null,
+                  "possible_answers": [],
+                  "set_to_current_datetime": false
+                },
+                {
+                  "max": "",
+                  "min": "",
+                  "ref": "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273_591ee7dc8400f_591ee7e584011",
+                  "type": "integer",
+                  "group": [],
+                  "jumps": [],
+                  "regex": "",
+                  "branch": [],
+                  "verify": false,
+                  "default": "",
+                  "is_title": false,
+                  "question": "Age",
+                  "uniqueness": "none",
+                  "is_required": false,
+                  "datetime_format": null,
+                  "possible_answers": [],
+                  "set_to_current_datetime": false
+                }
+              ],
+              "verify": false,
+              "default": null,
+              "is_title": false,
+              "question": "Family Members",
+              "uniqueness": "none",
+              "is_required": false,
+              "datetime_format": null,
+              "possible_answers": [],
+              "set_to_current_datetime": false
+            }
+          ]
+        }
+      ],
+      "access": "public",
+      "status": "locked",
+      "category": "general",
+      "logo_url": "d500a44b973e4de4a80fda57ca3dfe4d",
+      "visibility": "listed",
+      "description": "A test project for developers interested in giving Epicollect5 API a go!",
+      "entries_limits": {
+        "d500a44b973e4de4a80fda57ca3dfe4d_5901f6bb53273": "3"
+      },
+      "small_description": "A little project to test the public API",
+      "created_at": "2017-04-27 14:48:43",
+      "homepage": "https://five.epicollect.net/project/ec5-api-test"
+    }
+  }
+}

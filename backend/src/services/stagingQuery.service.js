@@ -59,6 +59,7 @@ const OPERATORS_WITHOUT_VALUE = new Set([
 
 const PAYLOAD_FIELD_PATTERN =
     /^payload\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/;
+const DECLARED_FIELD_PATTERN = /^field\.[a-f0-9-]{36}\.[A-Za-z0-9_-]{1,150}\.[A-Za-z0-9_-]{1,150}$/i;
 
 const MAX_FILTERS = 10;
 const MAX_FILTER_VALUE_LENGTH = 500;
@@ -72,7 +73,7 @@ function isFilterableField(field) {
         Object.hasOwn(
             TECHNICAL_FILTER_FIELDS,
             field,
-        ) || isPayloadField(field)
+        ) || isPayloadField(field) || DECLARED_FIELD_PATTERN.test(field)
     );
 }
 
@@ -81,7 +82,7 @@ function isSortableField(field) {
         Object.hasOwn(
             TECHNICAL_SORT_FIELDS,
             field,
-        ) || isPayloadField(field)
+        ) || isPayloadField(field) || DECLARED_FIELD_PATTERN.test(field)
     );
 }
 
@@ -267,7 +268,17 @@ function normalizeSortOptions(
     };
 }
 
-function getFilterExpression(field, values) {
+function getDeclaredExpression(field, values, fieldColumns) {
+    const column = fieldColumns.find((item) => item.key === field);
+    if (!column) throw Object.assign(new Error('La pregunta seleccionada no pertenece al proyecto.'), { code: 'STAGING_QUERY_INVALID' });
+    const project = values.push(column.project_id);
+    const form = values.push(column.form_ref);
+    const input = values.push(column.input_ref);
+    return `CASE WHEN project_id = $${project}::uuid AND form_ref = $${form} THEN field_values -> $${input}::text END`;
+}
+
+function getFilterExpression(field, values, fieldColumns = []) {
+    if (DECLARED_FIELD_PATTERN.test(field)) return `(${getDeclaredExpression(field, values, fieldColumns)}) #>> '{}'`;
     if (
         Object.hasOwn(
             TECHNICAL_FILTER_FIELDS,
@@ -290,6 +301,7 @@ function buildWhereClause({
     formRef,
     search,
     filters,
+    fieldColumns = [],
 }) {
     const conditions = ['project_slug = $1'];
     const values = [projectSlug];
@@ -330,6 +342,7 @@ function buildWhereClause({
         const expression = getFilterExpression(
             filter.field,
             values,
+            fieldColumns,
         );
 
         if (filter.operator === 'is_null') {
@@ -351,6 +364,14 @@ function buildWhereClause({
         values.push(filter.value);
 
         const valuePosition = values.length;
+
+        const column = fieldColumns.find((item) => item.key === filter.field);
+        if (column?.type === 'choices' && ['eq', 'neq'].includes(filter.operator)) {
+            const json = getDeclaredExpression(filter.field, values, fieldColumns);
+            const match = `((${json}) ? $${valuePosition} OR ${expression} = $${valuePosition})`;
+            conditions.push(filter.operator === 'eq' ? match : `NOT COALESCE(${match}, false)`);
+            continue;
+        }
 
         if (filter.operator === 'eq') {
             conditions.push(
@@ -391,6 +412,7 @@ function buildOrderByClause({
     sortBy,
     sortOrder,
     values,
+    fieldColumns = [],
 }) {
     let expression;
 
@@ -402,6 +424,12 @@ function buildOrderByClause({
     ) {
         expression =
             TECHNICAL_SORT_FIELDS[sortBy];
+    } else if (DECLARED_FIELD_PATTERN.test(sortBy)) {
+        expression = `(${getDeclaredExpression(sortBy, values, fieldColumns)}) #>> '{}'`;
+        if (fieldColumns.find((column) => column.key === sortBy)?.type === 'number') {
+            expression = `CASE WHEN length(${expression}) < 1000 AND ${expression} ~ '^[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]{1,3})?$'
+                THEN (${expression})::numeric END`;
+        }
     } else {
         values.push(getPayloadPath(sortBy));
 
@@ -416,7 +444,7 @@ function buildOrderByClause({
 
     return `
         ${expression} ${direction} NULLS LAST,
-        form_ref ASC, entry_uuid ASC
+        project_id ASC, form_ref ASC, entry_uuid ASC
     `;
 }
 
