@@ -5,6 +5,7 @@ const healthRoutes = require('./routes/health.routes');
 //Rutas de conexión
 const apiConnectionRoutes = require('./routes/apiConnection.routes');
 const syncLogRoutes = require('./routes/syncLog.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
 //
 //import stagingEntryRoutes from './routes/stagingEntry.routes.js';
 const stagingEntryRoutes = require('./routes/stagingEntry.routes');
@@ -61,6 +62,7 @@ app.use((error, req, res, next) => {
 app.use('/api', healthRoutes);
 app.use('/api', apiConnectionRoutes);
 app.use('/api', syncLogRoutes);
+app.use('/api', dashboardRoutes);
 app.use('/api/staging', stagingEntryRoutes);
 
 // Incluye fallos al guardar el resultado de una prueba o sincronización.

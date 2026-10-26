@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import ApiManager from "./pages/ApiManager";
 import DataExplorer from "./pages/DataExplorer";
+import Dashboard from "./pages/Dashboard";
 
 import "./App.css";
 
@@ -16,7 +17,15 @@ export default function App() {
     return (
         <div className='min-h-screen bg-slate-100'>
             <nav className='border-b border-slate-200 bg-white'>
-                <div className='mx-auto flex max-w-7xl gap-2 px-6 py-3'>
+                <div className='mx-auto flex max-w-7xl flex-wrap gap-2 px-6 py-3'>
+                    <button
+                        className={`rounded-lg px-4 py-2 text-sm font-medium ${activeModule === 'dashboard'
+                            ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                        onClick={() => setActiveModule('dashboard')}
+                        type='button'
+                    >
+                        Cuadro de mando
+                    </button>
                     <button
                         className={`rounded-lg px-4 py-2 text-sm font-medium ${
                             activeModule ===
@@ -53,7 +62,7 @@ export default function App() {
                 </div>
             </nav>
 
-            {activeModule === 'api-manager' ? (
+            {activeModule === 'dashboard' ? <Dashboard /> : activeModule === 'api-manager' ? (
                 <ApiManager />
             ) : (
                 <DataExplorer />

@@ -395,6 +395,9 @@ async function syncConnection(req, res) {
                 errorMessage: safeErrorMessage,
                 summary: {
                     error: safeErrorMessage,
+                    error_code: safeConnectionErrorCode(error, 'EPICOLLECT_SYNC_FAILED'),
+                    http_status: error.code === 'EPICOLLECT_HTTP_ERROR' && Number.isInteger(error.statusCode)
+                        && error.statusCode >= 400 && error.statusCode <= 599 ? error.statusCode : null,
                 },
             }, connection);
 
@@ -420,6 +423,9 @@ async function syncConnection(req, res) {
                 error_message: safeErrorMessage,
                 summary: {
                     error: safeErrorMessage,
+                    error_code: safeConnectionErrorCode(error, 'EPICOLLECT_SYNC_FAILED'),
+                    http_status: error.code === 'EPICOLLECT_HTTP_ERROR' && Number.isInteger(error.statusCode)
+                        && error.statusCode >= 400 && error.statusCode <= 599 ? error.statusCode : null,
                 },
             });
         }

@@ -90,6 +90,7 @@ export default function ApiManager() {
     function invalidateApiManagerQueries() {
         queryClient.invalidateQueries({ queryKey: ['api-connections'] });
         queryClient.invalidateQueries({ queryKey: ['sync-logs'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }
 
     const createMutation = useMutation({
