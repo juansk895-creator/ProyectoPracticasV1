@@ -35,6 +35,9 @@ const publicConnectionFields = `
     sync_max_pages,
     sync_delay_ms,
     sync_overlap_minutes,
+    sync_schedule_enabled,
+    sync_interval_minutes,
+    sync_next_run_at,
     last_sync_status,
     last_sync_error_message,
     last_sync_summary,
@@ -75,6 +78,8 @@ async function createConnection(connectionData) {
         sync_max_pages = 5,
         sync_delay_ms = 500,
         sync_overlap_minutes = 5,
+        sync_schedule_enabled = false,
+        sync_interval_minutes = 60,
     } = connectionData;
 
     const id = randomUUID();
@@ -99,9 +104,13 @@ async function createConnection(connectionData) {
             sync_per_page,
             sync_max_pages,
             sync_delay_ms,
-            sync_overlap_minutes
+            sync_overlap_minutes,
+            sync_schedule_enabled,
+            sync_interval_minutes,
+            sync_next_run_at
         )
-        VALUES ($14, $1, $2, $3, $4, $5, $6, $7, $15, $8, $9, $10, $11, $12, $13)
+        VALUES ($14, $1, $2, $3, $4, $5, $6, $7, $15, $8, $9, $10, $11, $12, $13,
+            $16, $17, CASE WHEN $16::boolean THEN now() + $17::integer * interval '1 minute' ELSE NULL END)
         RETURNING ${publicConnectionFields}
     `,
     [
@@ -120,6 +129,8 @@ async function createConnection(connectionData) {
         sync_overlap_minutes,
         id,
         oauthEncrypted,
+        sync_schedule_enabled,
+        sync_interval_minutes,
     ],);
     return result.rows[0];
 }
@@ -165,6 +176,10 @@ async function updateConnection(id, connectionData) {
             oauth_error_code = $12, oauth_retry_after = $13,
             is_active = $14, sync_filter_by = $15, sync_per_page = $16,
             sync_max_pages = $17, sync_delay_ms = $18, sync_overlap_minutes = $19,
+            sync_schedule_enabled = $21, sync_interval_minutes = $22,
+            sync_next_run_at = CASE WHEN NOT $21::boolean THEN NULL
+                WHEN NOT sync_schedule_enabled OR sync_interval_minutes <> $22 OR $20::boolean
+                    THEN now() + $22::integer * interval '1 minute' ELSE sync_next_run_at END,
             sync_cursor = CASE WHEN $20 THEN NULL ELSE sync_cursor END,
             last_sync_at = CASE WHEN $20 THEN NULL ELSE last_sync_at END,
             last_sync_status = CASE WHEN $20 THEN 'never' ELSE last_sync_status END,
@@ -182,6 +197,8 @@ async function updateConnection(id, connectionData) {
             data.sync_per_page ?? current.sync_per_page, data.sync_max_pages ?? current.sync_max_pages,
             data.sync_delay_ms ?? current.sync_delay_ms, data.sync_overlap_minutes ?? current.sync_overlap_minutes,
             changedSyncSource,
+            data.sync_schedule_enabled ?? current.sync_schedule_enabled,
+            data.sync_interval_minutes ?? current.sync_interval_minutes,
         ]);
         await client.query('COMMIT');
         return result.rows[0];
@@ -235,7 +252,7 @@ async function updateConnectionTestStatus(id, testStatus, errorMessage = null) {
     return result.rows[0] || null;
 }
 
-async function updateConnectionSyncState(id, syncState, expectedConnection = null) {
+async function updateConnectionSyncState(id, syncState, expectedConnection = null, database = pool) {
 
     const {
         status,
@@ -245,7 +262,7 @@ async function updateConnectionSyncState(id, syncState, expectedConnection = nul
     } = syncState;
 
 
-    const result = await pool.query(`
+    const result = await database.query(`
         UPDATE api_connections
         SET
             last_sync_at = now(),

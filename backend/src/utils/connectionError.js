@@ -1,4 +1,9 @@
 const SAFE_MESSAGES = {
+    SYNC_ALREADY_RUNNING: 'Esta conexión ya tiene una sincronización en ejecución. Espera a que termine.',
+    SYNC_CAPACITY_BUSY: 'El servidor está atendiendo otras sincronizaciones. Intenta nuevamente en unos momentos.',
+    SYNC_INTERRUPTED: 'La sincronización se interrumpió. El próximo intento utilizará el avance que quedó guardado.',
+    SYNC_SCHEDULER_CONFIG_INVALID: 'Revisa la configuración de sincronización programada del servidor.',
+    SYNC_SCHEDULER_MIGRATION_REQUIRED: 'Es necesario preparar el almacenamiento de sincronización programada.',
     EPICOLLECT_SCHEMA_INVALID: 'La definición de preguntas o su mapeo de exportación no es válido. Revisa la estructura del proyecto.',
     EPICOLLECT_PROJECT_INVALID: 'La definición del proyecto de Epicollect5 no es válida.',
     EPICOLLECT_FORM_UNKNOWN: 'El formulario o rama no aparece en la definición del proyecto.',

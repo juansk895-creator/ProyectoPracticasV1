@@ -3,6 +3,8 @@
 //const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 import { apiRequest } from './api.service';
 
+export function getSchedulerStatus() { return apiRequest('/sync-scheduler'); }
+
 
 export function getConnections() {
     return apiRequest('/connections');

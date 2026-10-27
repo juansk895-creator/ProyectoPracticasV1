@@ -2,8 +2,8 @@ const { assertAllowedEpicollectBase, normalizeApiBaseUrl } = require('../config/
 const oauthService = require('./oauth.service');
 const { parseProjectHierarchy, hierarchyError } = require('./projectHierarchy.service');
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
-
-function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+const { pause: sleep, context, checkSyncSignal } = require('./syncContext.service');
+const requestGate = require('./requestGate.service');
 
 function buildEntriesUrl(connection, options = {}) {
     const base = connection.provider === 'epicollect5'
@@ -24,17 +24,23 @@ function buildEntriesUrl(connection, options = {}) {
 }
 
 async function requestOnce(url, connection, token, options) {
+    await requestGate.waitForRequest(url);
+    checkSyncSignal();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs || DEFAULT_FETCH_TIMEOUT_MS);
     const headers = { Accept: 'application/json' };
     if (connection.auth_type === 'oauth2' || connection.auth_type === 'bearer') headers.Authorization = `Bearer ${token}`;
     else if (connection.auth_type === 'custom') headers.Authorization = token;
     try {
-        const response = await fetch(url, { method: 'GET', headers, signal: controller.signal, redirect: 'error' });
+        const outerSignal = context.getStore()?.signal;
+        const response = await fetch(url, { method: 'GET', headers,
+            signal: outerSignal ? AbortSignal.any([outerSignal, controller.signal]) : controller.signal, redirect: 'error' });
         if (!response.ok) {
+            const retryAt = response.status === 429 ? oauthService.retryTimestamp(response.headers.get('retry-after')) : null;
             await response.body?.cancel();
+            if (retryAt) await requestGate.deferRequests(url, retryAt);
             throw Object.assign(new Error(`Epicollect respondió con HTTP ${response.status}.`),
-                { code: 'EPICOLLECT_HTTP_ERROR', statusCode: response.status });
+                { code: 'EPICOLLECT_HTTP_ERROR', statusCode: response.status, retryAt });
         }
         let body;
         try { body = await response.json(); }
@@ -48,6 +54,7 @@ async function requestOnce(url, connection, token, options) {
         }
         return { statusCode: response.status, body };
     } catch (error) {
+        checkSyncSignal();
         if (controller.signal.aborted) throw Object.assign(new Error('La solicitud a Epicollect excedió el tiempo límite.'),
             { code: 'EPICOLLECT_TIMEOUT', statusCode: 504 });
         throw error;

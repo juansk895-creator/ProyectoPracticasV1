@@ -2,8 +2,7 @@ const { safeConnectionError, safeConnectionErrorCode } = require('../utils/conne
 const apiConnectionModel = require('../models/apiConnection.model');
 const epicollectService = require('../services/epicollect.service');
 
-const syncService = require('../services/sync.service');
-const syncLogModel = require('../models/syncLog.model');
+const syncRunner = require('../services/syncRunner.service');
 
 const { validateCreateConnection, validateUpdateConnection } = require('../validations/apiConnection.validator');
 const { filterConnection, filterConnections } = require('../utils/filter');
@@ -131,6 +130,8 @@ async function updateConnection(req, res) {
             //req.body,
             validation.data,
         );
+        if (validation.data.is_active === false) syncRunner.cancelRun(id);
+        else if (validation.data.sync_schedule_enabled === false) syncRunner.cancelRun(id, { scheduledOnly: true });
 
         if (!updatedConnection) {
             return res.status(404).json({
@@ -182,6 +183,7 @@ async function deactivateConnection(req, res){
             id,
             false,
         );
+        syncRunner.cancelRun(id);
 
         if (!connection) {
             return res.status(404).json({
@@ -306,136 +308,24 @@ async function testConnection(req, res) {
     }
 }
 
-function calculateDurationMs(startedAt, finishedAt) {
-    return finishedAt.getTime() - startedAt.getTime();
-}
-
-async function syncConnection(req, res) {
-
-
-    const { id } = req.params;
-
-    let connection = null;
-    const startedAt = new Date();
-
+async function syncConnection(req, res, next) {
     try {
-        connection = await apiConnectionModel.findConnectionWithTokenById(id);
-
-        if (!connection) {
-            return res.status(404).json({
-                status: 'error',
-                code: 'CONNECTION_NOT FOUND',
-                message: 'Conexión API no encontrada',
-            });
-        }
-
-        if (!connection.is_active) {
-            return res.status(400).json({
-                status: 'error',
-                code: 'CONNECTION_INACTIVE',
-                message: 'La conexión API está desactivada, no es posible sincronizar',
-            });
-        }
-
-        const syncResult = await syncService.syncConnectionToStaging(connection);
-
-        const nextCursor = syncResult.cursor.nextCursor || null;
-        const syncStatus = syncResult.database.skipped > 0 || syncResult.database.pendingParents > 0 ? 'partial' : 'success';
-
-
-        const updatedConnection = await apiConnectionModel.updateConnectionSyncState(id, {
-            status: syncStatus,
-            cursor: nextCursor,
-            errorMessage: null,
-            summary: syncResult,
-        }, connection);
-        if (!updatedConnection) throw Object.assign(new Error('La conexión cambió durante la sincronización.'), { code: 'CONNECTION_CHANGED' });
-
-        const finishedAt = new Date();
-
-        const syncLog = await syncLogModel.createSyncLog({
-            api_connection_id: connection.id,
-            project_slug: connection.project_slug,
-            form_ref: connection.form_ref,
-            status: syncStatus,
-            mode: syncResult.mode,
-            started_at: startedAt,
-            finished_at: finishedAt,
-            duration_ms: calculateDurationMs(startedAt, finishedAt),
-            filter_by: syncResult.filter.filterBy,
-            filter_from: syncResult.filter.filterFrom,
-            cursor_before: syncResult.cursor.previousCursor,
-            cursor_after: syncResult.cursor.nextCursor,
-            total_entries_fetched: syncResult.fetch.totalEntriesFetched,
-            processed_count: syncResult.database.processed,
-            skipped_count: syncResult.database.skipped,
-            stopped_by_max_pages: syncResult.fetch.stoppedByMaxPages,
-            error_message: null,
-            summary: syncResult,
-        });
-
-        return res.json({
-            status: 'ok',
-            message: 'Sincronización ejecutada correctamente',
-            data: {
-                //connection: updatedConnection,
-                connection: filterConnection(updatedConnection),
-                sync: syncResult,
-                log: syncLog,
-            },
-        });
+        const result = await syncRunner.runConnection(req.params.id);
+        return res.json({ status: 'ok', message: 'Sincronización ejecutada correctamente',
+            data: { ...result, connection: filterConnection(result.connection) } });
     } catch (error) {
-
-        const safeErrorMessage = safeConnectionError(error);
-
-        if (connection) {
-            await apiConnectionModel.updateConnectionSyncState(id, {
-                status: 'failed',
-                cursor: null,
-                errorMessage: safeErrorMessage,
-                summary: {
-                    error: safeErrorMessage,
-                    error_code: safeConnectionErrorCode(error, 'EPICOLLECT_SYNC_FAILED'),
-                    http_status: error.code === 'EPICOLLECT_HTTP_ERROR' && Number.isInteger(error.statusCode)
-                        && error.statusCode >= 400 && error.statusCode <= 599 ? error.statusCode : null,
-                },
-            }, connection);
-
-            const finishedAt = new Date();
-
-            await syncLogModel.createSyncLog({
-                api_connection_id: connection.id,
-                project_slug: connection.project_slug,
-                form_ref: connection.form_ref,
-                status: 'failed',
-                mode: null,
-                started_at: startedAt,
-                finished_at: finishedAt,
-                duration_ms: calculateDurationMs(startedAt, finishedAt),
-                filter_by: connection.sync_filter_by,
-                filter_from: null,
-                cursor_before: connection.sync_cursor,
-                cursor_after: connection.sync_cursor,
-                total_entries_fetched: 0,
-                processed_count: 0,
-                skipped_count: 0,
-                stopped_by_max_pages: false,
-                error_message: safeErrorMessage,
-                summary: {
-                    error: safeErrorMessage,
-                    error_code: safeConnectionErrorCode(error, 'EPICOLLECT_SYNC_FAILED'),
-                    http_status: error.code === 'EPICOLLECT_HTTP_ERROR' && Number.isInteger(error.statusCode)
-                        && error.statusCode >= 400 && error.statusCode <= 599 ? error.statusCode : null,
-                },
-            });
-        }
-        
-        return res.status(502).json({
-            status: 'error',
-            code: safeConnectionErrorCode(error, 'EPICOLLECT_SYNC_FAILED'),
-            message: 'No fue posible ejecutar la sincronización',
-            detail: safeErrorMessage,
-        });
+        if (error.code === 'SYNC_STATE_WRITE_FAILED') return next(error);
+        const status = error.code === 'CONNECTION_NOT_FOUND' ? 404
+            : error.code === 'CONNECTION_INACTIVE' ? 400
+                : error.code === 'SYNC_ALREADY_RUNNING' ? 409
+                    : error.code === 'SYNC_CAPACITY_BUSY' ? 429 : 502;
+        return res.status(status).json({ status: 'error',
+            code: safeConnectionErrorCode(error, error.code === 'CONNECTION_NOT_FOUND' || error.code === 'CONNECTION_INACTIVE'
+                ? error.code : 'EPICOLLECT_SYNC_FAILED'),
+            message: error.code === 'CONNECTION_NOT_FOUND' ? 'Conexión API no encontrada.'
+                : error.code === 'CONNECTION_INACTIVE' ? 'La conexión está desactivada.'
+                    : 'No fue posible ejecutar la sincronización.',
+            detail: safeConnectionError(error) });
     }
 }
 

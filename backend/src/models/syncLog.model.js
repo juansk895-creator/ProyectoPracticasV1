@@ -22,7 +22,8 @@ async function createSyncLog(logData) {
         status,
         mode = null,
         started_at,
-        finished_at,
+        finished_at = null,
+        trigger_source = 'manual',
         duration_ms = 0,
         filter_by = null,
         filter_from = null,
@@ -55,7 +56,8 @@ async function createSyncLog(logData) {
             skipped_count,
             stopped_by_max_pages,
             error_message,
-            summary
+            summary,
+            trigger_source
         ) VALUES (
             $1,
             $2,
@@ -74,10 +76,12 @@ async function createSyncLog(logData) {
             $15,
             $16,
             $17,
-            $18::jsonb
+            $18::jsonb,
+            $19
         )
         RETURNING
             id,
+            trigger_source,
             api_connection_id,
             project_slug,
             form_ref,
@@ -116,6 +120,7 @@ async function createSyncLog(logData) {
         stopped_by_max_pages,
         error_message,
         JSON.stringify(summary),
+        trigger_source,
     ],);
 
     return result.rows[0];
@@ -125,6 +130,7 @@ async function findSyncLogsByConnectionId(connectionId, limit = 20) {
     const result = await pool.query(`
         SELECT
             id,
+            trigger_source,
             api_connection_id,
             project_slug,
             form_ref,
@@ -157,6 +163,7 @@ async function findAllSyncLogs(limit = 50) {
     const result = await pool.query(`
         SELECT
             sl.id,
+            sl.trigger_source,
             sl.api_connection_id,
             sl.project_slug,
             sl.form_ref,

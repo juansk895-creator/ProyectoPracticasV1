@@ -3,6 +3,7 @@ const epicollect = require('./epicollect.service');
 const staging = require('../models/stagingEntry.model');
 const { hierarchyError } = require('./projectHierarchy.service');
 const { compileProjectFields } = require('./projectSchema.service');
+const { pause, checkSyncSignal } = require('./syncContext.service');
 
 function maxCursor(entries, field, previous) {
     let latest = previous ? new Date(previous) : null;
@@ -31,7 +32,7 @@ async function syncConnectionToStaging(connection, options = {}) {
     for (const stream of streams) {
         const previousCursor = saved.rows.find((item) => item.form_ref === stream.form_ref)?.sync_cursor || null;
         const filterFrom = options.filterFrom ?? (previousCursor ? new Date(new Date(previousCursor).getTime() - overlapMs).toISOString() : null);
-        if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await pause(delayMs);
         const fetched = await epicollect.fetchAllEpicollectEntries(connection, {
             perPage, maxPages, delayMs, formRef: stream.native_form_ref, branchRef: stream.branch_ref, mapIndex,
             filterBy: filterFrom ? filterBy : null, filterFrom, sortBy: filterBy, sortOrder: 'ASC',
@@ -40,6 +41,7 @@ async function syncConnectionToStaging(connection, options = {}) {
         downloads.push({ stream, ...fetched, previousCursor, filterFrom,
             nextCursor: maxCursor(fetched.entries, filterBy, previousCursor) });
     }
+    checkSyncSignal();
     const database = await staging.persistHierarchy(connection, graph, downloads);
     const cursors = downloads.map((item) => item.nextCursor).filter(Boolean).sort();
     return {

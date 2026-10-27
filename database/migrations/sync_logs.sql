@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS sync_logs (
     mode VARCHAR(30),
 
     started_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    finished_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    finished_at TIMESTAMP WITHOUT TIME ZONE,
+    trigger_source VARCHAR(10) NOT NULL DEFAULT 'manual' CHECK (trigger_source IN ('manual', 'scheduled')),
     duration_ms INTEGER NOT NULL DEFAULT 0,
 
     filter_by VARCHAR(30),
@@ -36,7 +37,7 @@ CREATE TABLE IF NOT EXISTS sync_logs (
 
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
 
-    CONSTRAINT sync_logs_status_check CHECK (status IN ('success', 'failed', 'partial')),
+    CONSTRAINT sync_logs_status_check CHECK (status IN ('running', 'success', 'failed', 'partial')),
 
     CONSTRAINT sync_logs_mode_check CHECK (mode IS NULL OR mode IN ('initial', 'incremental'))
 );

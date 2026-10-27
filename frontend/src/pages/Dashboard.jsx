@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboard } from '../services/dashboard.service';
 
-const STATUS = { success: 'Correcta', failed: 'Fallida', partial: 'Parcial' };
+const STATUS = { success: 'Correcta', failed: 'Fallida', partial: 'Parcial', running: 'En ejecución' };
 const VALIDATION = { unvalidated: 'Sin validar', validated: 'Validado', rejected: 'Rechazado' };
 const number = (value) => new Intl.NumberFormat('es-MX').format(value);
 const day = (value) => value.split('-').reverse().join('/');
@@ -17,7 +17,7 @@ function Metric({ label, value, description }) {
 
 export default function Dashboard() {
     const [days, setDays] = useState(7);
-    const query = useQuery({ queryKey: ['dashboard', days], queryFn: () => getDashboard(days) });
+    const query = useQuery({ queryKey: ['dashboard', days], queryFn: () => getDashboard(days), refetchInterval: 30000 });
     const data = query.data?.data;
 
     return <main className='mx-auto max-w-7xl space-y-6 px-6 py-8'>
@@ -75,7 +75,7 @@ export default function Dashboard() {
                 </div>
                 <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
                     <Metric label='Corridas registradas' value={number(data.sync.runs)}
-                        description={`Correctas: ${number(data.sync.successful)} · Fallidas: ${number(data.sync.failed)} · Parciales: ${number(data.sync.partial)}`} />
+                        description={`Correctas: ${number(data.sync.successful)} · Fallidas: ${number(data.sync.failed)} · Parciales: ${number(data.sync.partial)} · En ejecución: ${number(data.sync.running)}`} />
                     <Metric label='Registros procesados' value={number(data.sync.processed)} description='Incluye registros reprocesados en distintas corridas.' />
                     <Metric label='Registros omitidos' value={number(data.sync.skipped)} description={`De ${number(data.sync.fetched)} registros descargados.`} />
                     <Metric label='Ritmo de procesamiento' value={data.sync.recordsPerSecond === null ? '—' : `${number(data.sync.recordsPerSecond)} reg/s`}
@@ -84,10 +84,10 @@ export default function Dashboard() {
                 <div className='max-h-96 overflow-auto rounded-xl border border-slate-200 bg-white' tabIndex={0} aria-label='Tabla de actividad diaria con desplazamiento'>
                     <table className='w-full text-left text-sm'>
                         <caption className='p-4 text-left font-semibold'>Actividad diaria</caption>
-                        <thead className='sticky top-0 bg-slate-50'><tr>{['Fecha', 'Corridas', 'Correctas', 'Fallidas', 'Parciales', 'Procesados'].map((label) => <th key={label} scope='col' className='px-4 py-3'>{label}</th>)}</tr></thead>
+                        <thead className='sticky top-0 bg-slate-50'><tr>{['Fecha', 'Corridas', 'Correctas', 'Fallidas', 'Parciales', 'En ejecución', 'Procesados'].map((label) => <th key={label} scope='col' className='px-4 py-3'>{label}</th>)}</tr></thead>
                         <tbody>{data.daily.map((item) => <tr key={item.day} className='border-t border-slate-100'>
                             <th scope='row' className='whitespace-nowrap px-4 py-3 font-normal'>{day(item.day)}</th>
-                            {[item.runs, item.successful, item.failed, item.partial, item.processed].map((value, index) => <td key={index} className='px-4 py-3'>{number(value)}</td>)}
+                            {[item.runs, item.successful, item.failed, item.partial, item.running, item.processed].map((value, index) => <td key={index} className='px-4 py-3'>{number(value)}</td>)}
                         </tr>)}</tbody>
                     </table>
                 </div>
@@ -102,14 +102,14 @@ export default function Dashboard() {
                         <p className='font-medium text-slate-900'>{run.connection_name} · {run.project_slug}</p>
                         <p className={run.status === 'failed' ? 'font-medium text-red-700' : 'font-medium text-slate-700'}>{STATUS[run.status] || run.status}</p>
                     </div>
-                    <p className='mt-1 text-sm text-slate-600'>{run.started_at} · {number(run.duration_ms / 1000)} s · {number(run.processed_count)} procesados · {number(run.skipped_count)} omitidos</p>
+                    <p className='mt-1 text-sm text-slate-600'>{run.trigger_source === 'scheduled' ? 'Programada' : 'Manual'} · {run.started_at} · {number(run.duration_ms / 1000)} s · {number(run.processed_count)} procesados · {number(run.skipped_count)} omitidos</p>
                     {run.error_message && <p className='mt-2 text-sm text-red-700'>{run.error_message}</p>}
                     <details className='mt-2 text-sm text-slate-600'>
                         <summary className='cursor-pointer'>Ver detalles de la corrida</summary>
                         <dl className='mt-2 space-y-1 break-all'>
                             <div><dt className='inline font-medium'>Identificador: </dt><dd className='inline'>{run.id}</dd></div>
                             <div><dt className='inline font-medium'>Modo: </dt><dd className='inline'>{run.mode === 'initial' ? 'Inicial' : run.mode === 'incremental' ? 'Incremental' : 'No determinado'}</dd></div>
-                            <div><dt className='inline font-medium'>Fin: </dt><dd className='inline'>{run.finished_at}</dd></div>
+                            <div><dt className='inline font-medium'>Fin: </dt><dd className='inline'>{run.finished_at || 'En ejecución'}</dd></div>
                             <div><dt className='inline font-medium'>Marcador anterior: </dt><dd className='inline'>{run.cursor_before || 'Sin marcador'}</dd></div>
                             <div><dt className='inline font-medium'>Marcador posterior: </dt><dd className='inline'>{run.cursor_after || 'Sin marcador'}</dd></div>
                             {run.error_code && <div><dt className='inline font-medium'>Código de incidencia: </dt><dd className='inline'>{run.error_code}</dd></div>}

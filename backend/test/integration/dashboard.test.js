@@ -15,6 +15,8 @@ test('cuadro de mando con PostgreSQL y HTTP reales', { skip: !process.env.TEST_D
     await client.query(`SET search_path TO ${schema}, public`);
     const pool = require('../../src/config/db');
     const originalQuery = pool.query;
+    const originalConnect = pool.connect;
+    pool.connect = async () => ({ query: client.query.bind(client), release() {} });
     let queue = Promise.resolve();
     pool.query = (...args) => {
         const query = queue.then(() => client.query(...args));
@@ -25,6 +27,7 @@ test('cuadro de mando con PostgreSQL y HTTP reales', { skip: !process.env.TEST_D
     t.after(async () => {
         if (server) await new Promise((resolve) => server.close(resolve));
         pool.query = originalQuery;
+        pool.connect = originalConnect;
         await pool.end();
         await client.query('SET search_path TO public');
         await client.query(`DROP SCHEMA ${schema} CASCADE`);
@@ -116,7 +119,7 @@ test('cuadro de mando con PostgreSQL y HTTP reales', { skip: !process.env.TEST_D
     });
     await t.test('agrega todo el período y diferencia reprocesamientos de filas almacenadas', async () => {
         const { data } = (await request()).body;
-        assert.deepEqual(data.sync, { runs: 4, successful: 2, failed: 1, partial: 1,
+        assert.deepEqual(data.sync, { runs: 4, successful: 2, failed: 1, partial: 1, running: 0,
             fetched: 12, processed: 12, skipped: 0, durationMs: 4000, recordsPerSecond: 3 });
         assert.equal(data.daily.reduce((sum, row) => sum + row.runs, 0), 4);
         assert.equal(data.daily.reduce((sum, row) => sum + row.processed, 0), 12);
@@ -168,13 +171,19 @@ test('cuadro de mando con PostgreSQL y HTTP reales', { skip: !process.env.TEST_D
     });
     await t.test('un fallo de consulta devuelve un error seguro y la aplicación sigue disponible', async () => {
         await client.query('ALTER TABLE sync_logs RENAME TO unavailable_logs');
+        // Impedir que PostgreSQL resuelva una tabla homónima del esquema public
+        // cuando la base también contiene otros datos de demostración.
+        await client.query(`SET search_path TO ${schema}`);
         try {
             const { status, body } = await request();
             assert.equal(status, 500);
             assert.equal(body.code, 'INTERNAL_ERROR');
             assert.ok(!JSON.stringify(body).includes('unavailable_logs'));
             assert.ok(!JSON.stringify(body).includes('stack'));
-        } finally { await client.query('ALTER TABLE unavailable_logs RENAME TO sync_logs'); }
+        } finally {
+            await client.query('ALTER TABLE unavailable_logs RENAME TO sync_logs');
+            await client.query(`SET search_path TO ${schema}, public`);
+        }
         assert.equal((await request()).status, 200);
     });
 });

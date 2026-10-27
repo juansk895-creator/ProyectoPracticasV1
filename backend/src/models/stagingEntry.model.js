@@ -4,6 +4,7 @@ const { normalizeHierarchyEntry, hierarchyError } = require('../services/project
 const { saveProjectHierarchy } = require('../services/hierarchyStorage.service');
 const { compileProjectFields, extractFieldValues, buildDeclaredColumns } = require('../services/projectSchema.service');
 const { buildDynamicColumns } = require('../services/schemaAnalyzer.service');
+const { context, checkSyncSignal } = require('../services/syncContext.service');
 
 async function upsertStagingEntry(client, row) {
     await client.query(`INSERT INTO entradas_staging (project_slug, form_ref, entry_uuid, ec5_uuid,
@@ -37,8 +38,15 @@ async function persistHierarchy(connection, graph, downloads) {
     try {
         await client.query('BEGIN');
         await client.query("SET LOCAL lock_timeout = '20s'");
+        checkSyncSignal();
+        const runId = context.getStore()?.runId;
+        if (runId) {
+            const owner = await client.query("SELECT id FROM sync_logs WHERE id = $1 AND status = 'running' FOR UPDATE", [runId]);
+            if (!owner.rowCount) throw hierarchyError('SYNC_INTERRUPTED', 'La corrida ya no está vigente.');
+        }
         const current = (await client.query('SELECT * FROM api_connections WHERE id = $1 FOR UPDATE', [connection.id])).rows[0];
-        if (!current?.is_active || ['provider', 'base_url', 'project_slug', 'form_ref', 'sync_filter_by', 'auth_type'].some(
+        if (!current?.is_active || (context.getStore()?.trigger === 'scheduled' && !current.sync_schedule_enabled) ||
+            ['provider', 'base_url', 'project_slug', 'form_ref', 'sync_filter_by', 'auth_type'].some(
             (field) => current[field] !== connection[field])) {
             throw hierarchyError('CONNECTION_CHANGED', 'La conexión cambió durante la descarga.');
         }
@@ -61,6 +69,7 @@ async function persistHierarchy(connection, graph, downloads) {
               AND NOT EXISTS (SELECT 1 FROM entradas_staging p WHERE p.project_id = s.project_id
                 AND p.form_ref = s.parent_form_ref AND p.entry_uuid = s.parent_uuid)`,
         [projectId, downloads.map((item) => item.stream.form_ref)]);
+        checkSyncSignal();
         await client.query('COMMIT');
         return { received: entries.length, processed: entries.length, skipped: 0, errors: [], pendingParents: pending.rows[0].total };
     } catch (error) {

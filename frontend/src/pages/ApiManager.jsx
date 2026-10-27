@@ -7,6 +7,7 @@ import {
     deactivateConnection,
     getConnections,
     getSyncLogs,
+    getSchedulerStatus,
     syncConnection,
     testConnection,
     updateConnection,
@@ -27,6 +28,8 @@ const initialFormState = {
     sync_max_pages: 5,
     sync_delay_ms: 500,
     sync_overlap_minutes: 5,
+    sync_schedule_enabled: false,
+    sync_interval_minutes: 60,
 };
 
 function formatDate(value) {
@@ -67,12 +70,15 @@ export default function ApiManager() {
     const connectionsQuery = useQuery({
         queryKey: ['api-connections'],
         queryFn: getConnections,
+        refetchInterval: 30000,
     });
 
     const syncLogsQuery = useQuery({
         queryKey: ['sync-logs'],
         queryFn: () => getSyncLogs(10),
+        refetchInterval: 30000,
     });
+    const schedulerQuery = useQuery({ queryKey: ['sync-scheduler'], queryFn: getSchedulerStatus });
 
     const connections = connectionsQuery.data?.data || [];
     const logs = syncLogsQuery.data?.data || [];
@@ -212,7 +218,7 @@ export default function ApiManager() {
 
         setFormData((current) => ({
             ...current,
-            [name]: type === 'number' ? Number(value) : value,
+            [name]: type === 'checkbox' ? event.target.checked : type === 'number' ? Number(value) : value,
         }));
     }
 
@@ -269,6 +275,8 @@ export default function ApiManager() {
             sync_overlap_minutes:
                 connection.sync_overlap_minutes ??
                 initialFormState.sync_overlap_minutes,
+            sync_schedule_enabled: connection.sync_schedule_enabled ?? false,
+            sync_interval_minutes: connection.sync_interval_minutes ?? 60,
         });
     }
 
@@ -513,6 +521,26 @@ export default function ApiManager() {
                             </label>
                         </div>
 
+                        <fieldset className='space-y-3 rounded-lg border border-slate-200 p-3'>
+                            <legend className='px-1 text-sm font-medium'>Sincronización programada</legend>
+                            <label className='flex items-center gap-2 text-sm'>
+                                <input type='checkbox' name='sync_schedule_enabled'
+                                    checked={formData.sync_schedule_enabled} onChange={handleInputChange} />
+                                Actualizar esta conexión automáticamente
+                            </label>
+                            <label className='block text-sm'>Intervalo en minutos
+                                <input className='mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
+                                    type='number' min='5' max='10080' required name='sync_interval_minutes'
+                                    value={formData.sync_interval_minutes} onChange={handleInputChange} />
+                            </label>
+                            <p className='text-xs text-slate-600'>La primera ejecución se programa después de guardar el intervalo.
+                                Las siguientes se calculan al terminar cada corrida.</p>
+                            {!schedulerQuery.isPending && !schedulerQuery.data?.data?.enabled && <p className='text-sm text-amber-800' role='status'>
+                                {schedulerQuery.isError ? 'No fue posible consultar el estado de la programación del servidor.'
+                                    : 'La programación está desactivada en el servidor. Puedes guardar esta configuración para activarla posteriormente.'}
+                            </p>}
+                        </fieldset>
+
                         <div className={isEditing ? 'grid grid-cols-2 gap-3' : ''}>
                             {isEditing && (
                                 <button
@@ -639,6 +667,18 @@ export default function ApiManager() {
 
                                     <dl className='mt-4 grid gap-3 text-sm md:grid-cols-3'>
                                         <div>
+                                            <dt className='text-slate-500'>Programación</dt>
+                                            <dd>{!connection.sync_schedule_enabled ? 'Desactivada'
+                                                : !connection.is_active ? 'En pausa: conexión inactiva'
+                                                    : !schedulerQuery.data?.data?.enabled ? 'En espera de activación en el servidor'
+                                                        : `Cada ${connection.sync_interval_minutes} minutos`}</dd>
+                                        </div>
+                                        <div>
+                                            <dt className='text-slate-500'>Próxima ejecución prevista</dt>
+                                            <dd>{connection.sync_schedule_enabled && connection.is_active && schedulerQuery.data?.data?.enabled
+                                                ? formatDate(connection.sync_next_run_at) : '—'}</dd>
+                                        </div>
+                                        <div>
                                             <dt className='text-slate-500'>Test</dt>
                                             <dd className='font-medium'>
                                                 {connection.last_test_status}
@@ -704,6 +744,7 @@ export default function ApiManager() {
                                 <tr className='border-b bg-slate-50 text-left'>
                                     <th className='p-2'>Proyecto</th>
                                     <th className='p-2'>Estado</th>
+                                    <th className='p-2'>Origen</th>
                                     <th className='p-2'>Modo</th>
                                     <th className='p-2'>Obtenidos</th>
                                     <th className='p-2'>Procesados</th>
@@ -718,6 +759,7 @@ export default function ApiManager() {
                                     <tr className='border-b' key={log.id}>
                                         <td className='p-2'>{log.project_slug}</td>
                                         <td className='p-2'>{log.status}</td>
+                                        <td className='p-2'>{log.trigger_source === 'scheduled' ? 'Programada' : 'Manual'}</td>
                                         <td className='p-2'>{log.mode || '-'}</td>
                                         <td className='p-2'>{log.total_entries_fetched}</td>
                                         <td className='p-2'>{log.processed_count}</td>

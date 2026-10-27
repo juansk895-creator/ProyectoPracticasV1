@@ -4,6 +4,7 @@ const PUBLIC_FIELDS = [
     'is_active', 'last_test_at', 'last_test_status', 'last_error_message',
     'last_sync_at', 'sync_filter_by', 'sync_cursor', 'sync_per_page',
     'sync_max_pages', 'sync_delay_ms', 'sync_overlap_minutes', 'last_sync_status',
+    'sync_schedule_enabled', 'sync_interval_minutes', 'sync_next_run_at',
     'last_sync_error_message', 'last_sync_summary', 'created_at', 'updated_at',
 ];
 

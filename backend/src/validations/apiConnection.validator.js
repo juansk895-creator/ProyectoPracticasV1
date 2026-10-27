@@ -134,6 +134,13 @@ function validateTokenInput(payload, errors) {
     }
 }
 
+function validateSchedule(payload, data, errors) {
+    const enabled = validateBoolean(payload, 'sync_schedule_enabled', errors);
+    if (enabled !== undefined) data.sync_schedule_enabled = enabled;
+    const interval = validateIntegerRange(payload, 'sync_interval_minutes', 5, 10080, errors);
+    if (interval !== undefined) data.sync_interval_minutes = interval;
+}
+
 function validateAuth(payload, data, errors, current, creating) {
     const type = data.auth_type ?? current?.auth_type ?? 'bearer';
     const provider = data.provider ?? current?.provider ?? 'epicollect5';
@@ -279,6 +286,7 @@ function validateCreateConnection(payload = {}) {
     }
 
     validateAuth(payload, data, errors, null, true);
+    validateSchedule(payload, data, errors);
 
     return {
         isValid: errors.length === 0,
@@ -422,6 +430,7 @@ function validateUpdateConnection(payload = {}, current = null) {
     }
 
     validateAuth(payload, data, errors, current, false);
+    validateSchedule(payload, data, errors);
 
     if (Object.keys(data).length === 0 && errors.length === 0) {
         errors.push({

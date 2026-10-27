@@ -16,6 +16,7 @@ async function getDashboard(days) {
                 count(*) FILTER (WHERE status = 'success') AS successful,
                 count(*) FILTER (WHERE status = 'failed') AS failed,
                 count(*) FILTER (WHERE status = 'partial') AS partial,
+                count(*) FILTER (WHERE status = 'running') AS running,
                 sum(processed_count) AS processed
             FROM logs GROUP BY started_at::date
         )
@@ -42,6 +43,7 @@ async function getDashboard(days) {
                 'successful', count(*) FILTER (WHERE status = 'success'),
                 'failed', count(*) FILTER (WHERE status = 'failed'),
                 'partial', count(*) FILTER (WHERE status = 'partial'),
+                'running', count(*) FILTER (WHERE status = 'running'),
                 'fetched', COALESCE(sum(total_entries_fetched), 0),
                 'processed', COALESCE(sum(processed_count), 0),
                 'skipped', COALESCE(sum(skipped_count), 0),
@@ -52,13 +54,14 @@ async function getDashboard(days) {
             'daily', (SELECT jsonb_agg(jsonb_build_object('day', calendar.day::date::text,
                 'runs', COALESCE(d.runs, 0), 'successful', COALESCE(d.successful, 0),
                 'failed', COALESCE(d.failed, 0), 'partial', COALESCE(d.partial, 0),
+                'running', COALESCE(d.running, 0),
                 'processed', COALESCE(d.processed, 0)) ORDER BY calendar.day)
                 FROM period p CROSS JOIN LATERAL generate_series(
                     p.starts, p.ends - interval '1 day', interval '1 day') calendar(day)
                 LEFT JOIN daily d ON d.day = calendar.day::date),
             'recent', COALESCE((SELECT jsonb_agg(r ORDER BY r.started_at DESC, r.id DESC)
                 FROM (SELECT sl.id, sl.api_connection_id, ac.name AS connection_name,
-                    sl.project_slug, sl.form_ref, sl.status, sl.mode,
+                    sl.project_slug, sl.form_ref, sl.status, sl.mode, sl.trigger_source,
                     to_char(sl.started_at, 'YYYY-MM-DD HH24:MI:SS') AS started_at,
                     to_char(sl.finished_at, 'YYYY-MM-DD HH24:MI:SS') AS finished_at,
                     sl.duration_ms, sl.processed_count, sl.skipped_count,
