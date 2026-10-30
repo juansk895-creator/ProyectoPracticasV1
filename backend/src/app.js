@@ -65,6 +65,7 @@ app.use('/api', apiConnectionRoutes);
 app.use('/api', syncLogRoutes);
 app.use('/api', dashboardRoutes);
 app.use('/api', schedulerRoutes);
+app.use('/api', require('./routes/audit.routes'));
 app.use('/api/staging', stagingEntryRoutes);
 
 // Incluye fallos al guardar el resultado de una prueba o sincronización.

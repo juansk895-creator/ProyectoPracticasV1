@@ -29,3 +29,5 @@ dist-ssr
 .env.*
 !.env.example
 backups/
+audit-sources*.json
+surveyor-directory*.json

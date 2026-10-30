@@ -11,7 +11,9 @@
     "credentials:migrate": "node scripts/migrateCredentials.js",
     "oauth:migrate": "node scripts/migrateOAuth.js",
     "staging:migrate": "node scripts/migrateStaging.js",
-    "scheduler:migrate": "node scripts/migrateScheduler.js"
+    "scheduler:migrate": "node scripts/migrateScheduler.js",
+    "audit:migrate": "node scripts/migrateAudit.js",
+    "audit:directory": "node scripts/importSurveyors.js"
   },
   "keywords": [],
   "author": "",

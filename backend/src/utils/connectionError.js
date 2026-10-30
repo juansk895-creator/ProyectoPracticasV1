@@ -1,4 +1,12 @@
 const SAFE_MESSAGES = {
+    AUDIT_QUERY_INVALID: 'Revisa el identificador, las fechas y los filtros de auditoría.',
+    AUDIT_SOURCE_UNAVAILABLE: 'El acceso a la identidad del capturista aún no está configurado para este proyecto.',
+    AUDIT_CONFIG_INVALID: 'Revisa la configuración de acceso a auditoría en el servidor.',
+    AUDIT_PROJECT_NOT_READY: 'Sincroniza primero los registros del proyecto para consultar su auditoría.',
+    AUDIT_MIGRATION_REQUIRED: 'Es necesario preparar el almacenamiento de auditoría.',
+    AUDIT_ALREADY_RUNNING: 'La auditoría de este proyecto ya se está actualizando. Espera a que termine.',
+    AUDIT_PAGE_LIMIT: 'La consulta de auditoría superó el máximo de páginas. Ajusta el límite de la conexión y repite.',
+    AUDIT_RESPONSE_INVALID: 'El origen devolvió información de auditoría incompleta o inconsistente. No se guardó el lote.',
     SYNC_ALREADY_RUNNING: 'Esta conexión ya tiene una sincronización en ejecución. Espera a que termine.',
     SYNC_CAPACITY_BUSY: 'El servidor está atendiendo otras sincronizaciones. Intenta nuevamente en unos momentos.',
     SYNC_INTERRUPTED: 'La sincronización se interrumpió. El próximo intento utilizará el avance que quedó guardado.',

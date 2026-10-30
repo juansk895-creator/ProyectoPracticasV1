@@ -8,7 +8,7 @@ const requestGate = require('./requestGate.service');
 function buildEntriesUrl(connection, options = {}) {
     const base = connection.provider === 'epicollect5'
         ? assertAllowedEpicollectBase(connection.base_url) : normalizeApiBaseUrl(connection.base_url);
-    const url = new URL(`${base}/export/entries/${connection.project_slug}`);
+    const url = new URL(`${base}/${options.rawEntries ? 'entries' : 'export/entries'}/${connection.project_slug}`);
     url.searchParams.set('per_page', String(options.perPage ?? 500));
     url.searchParams.set('page', String(options.page ?? 1));
     url.searchParams.set('format', 'json');
