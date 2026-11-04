@@ -16,7 +16,10 @@
     "staging:migrate": "node scripts/migrateStaging.js",
     "scheduler:migrate": "node scripts/migrateScheduler.js",
     "audit:migrate": "node scripts/migrateAudit.js",
-    "audit:directory": "node scripts/importSurveyors.js"
+    "audit:directory": "node scripts/importSurveyors.js",
+    "almacen:migrate": "node scripts/migrateAlmacen.js",
+    "almacen:ficha": "node scripts/almacenFicha.js",
+    "almacen:proyectar": "node scripts/almacenProyectar.js"
   },
   "keywords": [],
   "author": "",

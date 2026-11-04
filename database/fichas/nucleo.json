@@ -1,0 +1,13 @@
+{
+  "variables": [
+    { "clave": "folio", "etiqueta": "Folio del cuestionario", "tipo": "texto", "si_falta": "invalida" },
+    { "clave": "fecha_entrevista", "etiqueta": "Fecha de la entrevista", "tipo": "fecha", "si_falta": "invalida" },
+    { "clave": "cve_encuestador", "etiqueta": "Clave del encuestador", "tipo": "texto", "si_falta": "invalida" },
+    { "clave": "cve_municipio", "etiqueta": "Municipio", "tipo": "texto", "si_falta": "invalida" },
+    { "clave": "localidad", "etiqueta": "Localidad", "tipo": "texto", "si_falta": "recuperable" },
+    { "clave": "nombre_unidad_economica", "etiqueta": "Nombre de la unidad económica", "tipo": "texto", "si_falta": "recuperable" },
+    { "clave": "total_personal_ocupado", "etiqueta": "Personas ocupadas", "tipo": "entero", "si_falta": "recuperable", "rango": [0, 10000] },
+    { "clave": "consentimiento", "etiqueta": "Consentimiento informado", "tipo": "categoria", "si_falta": "invalida",
+      "categorias": { "si": "Sí", "no": "No" } }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "encuesta": "mezcal",
+  "nombre": "Productores de mezcal artesanal",
+  "variables": [
+    { "clave": "especie_agave", "etiqueta": "Especie de agave utilizada", "tipo": "categoria", "si_falta": "invalida",
+      "categorias": { "espadin": "Espadín", "tobala": "Tobalá", "otra": "Otra" } },
+    { "clave": "produccion_litros_anual", "etiqueta": "Litros producidos al año", "tipo": "entero", "si_falta": "invalida", "rango": [50, 50000] },
+    { "clave": "horno_tipo", "etiqueta": "Tipo de horno", "tipo": "categoria", "si_falta": "recuperable",
+      "categorias": { "conico_piedra": "Cónico de piedra", "mamposteria": "Mampostería" } },
+    { "clave": "tipo_molienda", "etiqueta": "Tipo de molienda", "tipo": "categoria", "si_falta": "recuperable",
+      "categorias": { "tahona": "Tahona", "manual": "Manual", "mecanica": "Mecánica" } },
+    { "clave": "material_alambique", "etiqueta": "Material del alambique", "tipo": "categoria", "si_falta": "recuperable",
+      "categorias": { "cobre": "Cobre", "barro": "Barro" } },
+    { "clave": "certificacion_do", "etiqueta": "Cuenta con Denominación de Origen", "tipo": "categoria", "si_falta": "opcional",
+      "categorias": { "si": "Sí", "no": "No" } },
+    { "clave": "agua_fuente", "etiqueta": "Fuente de abastecimiento de agua", "tipo": "categoria", "si_falta": "recuperable",
+      "categorias": { "pozo": "Pozo propio", "rio": "Río", "red": "Red pública" } },
+    { "clave": "destino_venta", "etiqueta": "Principal destino de la venta", "tipo": "categoria", "si_falta": "recuperable",
+      "categorias": { "local": "Local", "nacional": "Nacional", "exportacion": "Exportación" } }
+  ],
+  "levantamientos": [
+    { "anio": 2024, "proyecto": { "base_url": "https://localhost:8443/api", "slug": "mezcal-2024" },
+      "preguntas": {
+        "folio": "Folio", "fecha_entrevista": "Fecha de levantamiento", "cve_encuestador": "Encuestador",
+        "cve_municipio": "Municipio", "localidad": "Localidad", "nombre_unidad_economica": "Nombre de la unidad",
+        "total_personal_ocupado": "Personal ocupado", "consentimiento": "Consentimiento",
+        "especie_agave": "Tipo de agave", "produccion_litros_anual": "Litros al año", "horno_tipo": "Tipo de horno",
+        "tipo_molienda": "Molienda", "material_alambique": "Destilador", "certificacion_do": "Certificado DO"
+      } },
+    { "anio": 2025, "proyecto": { "base_url": "https://localhost:8443/api", "slug": "mezcal-2025" },
+      "preguntas": {
+        "folio": "Folio del cuestionario", "fecha_entrevista": "Fecha de la entrevista", "cve_encuestador": "Clave del encuestador",
+        "cve_municipio": "Clave del municipio", "localidad": "Localidad", "nombre_unidad_economica": "Nombre de la unidad económica",
+        "total_personal_ocupado": "Total de personal ocupado", "consentimiento": "Consentimiento informado",
+        "especie_agave": { "pregunta": "Especie de agave", "opciones": { "Espadín (A. angustifolia)": "espadin" } },
+        "produccion_litros_anual": "Producción en litros anual", "horno_tipo": "Horno: tipo",
+        "tipo_molienda": "Tipo de molienda", "material_alambique": "Material del alambique",
+        "certificacion_do": "Certificación de Denominación de Origen",
+        "agua_fuente": "Fuente de abastecimiento de agua", "destino_venta": "Principal destino de la venta"
+      } }
+  ],
+  "reglas": [
+    { "clave": "exportacion_requiere_do", "efecto": "rechaza",
+      "si": { "variable": "destino_venta", "igual": "exportacion" },
+      "entonces": { "variable": "certificacion_do", "requerida": true },
+      "mensaje": "Se declara exportación sin certificación de Denominación de Origen." }
+  ]
+}
